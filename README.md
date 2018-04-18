@@ -13,7 +13,7 @@ fl64 microservices repository
 
 ## 12.1 What was done
 - установлен и настроен docker (https://docs.docker.com/install/linux/docker-ce/fedora/)
-- ДЗ выполнено в полном объему
+- ДЗ выполнено в полном объеме
 В рамках задания со *:
 - в файл docker-monolith/docker-1.log добавлена информация по заданию со *
 
