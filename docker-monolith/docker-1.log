@@ -1,0 +1,19 @@
+REPOSITORY             TAG                 IMAGE ID            CREATED             SIZE
+fl64/ubuntu-tmp-file   latest              58aba078f767        43 seconds ago      113MB
+mikesplain/openvas     latest              de9b4e9f3413        4 days ago          3.51GB
+mikesplain/openvas     latest              de9b4e9f3413        4 days ago          3.51GB
+ubuntu                 16.04               c9d990395902        6 days ago          113MB
+hello-world            latest              e38bc07ac18e        7 days ago          1.85kB
+<none>                 <none>              a42509c2aaf0        2 weeks ago         214MB
+debian                 latest              2b98c9851a37        5 weeks ago         100MB
+
+Контейнер в отличии от образа содержит:
+- информацию о состоянии (state) контенера (запущен или нет, время запуска ...)
+- ссылается на образ из которого он запущен
+- содержит информацию о смонтированных дисках (Mounts)
+- конфигурации хоста и лимиты (HostConfig)
+- содержит сетевые настройки контейнера (NetworkSettings)
+
+Образ содержит информацию:
+- о своем предке (если есть!?)
+- информацию о слоях (Layers)
