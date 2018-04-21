@@ -1,0 +1,32 @@
+{
+  "variables":
+    {
+      "prj_id":null,
+      "src_img_fam":null,
+      "machine_type":"n1-standard-1",
+      "disk_size":"10"
+    },
+  "builders": [
+    {
+    "type": "googlecompute",
+    "project_id": "{{user `prj_id`}}",
+    "image_name": "docker-host-{{timestamp}}",
+    "image_family": "docker-host",
+    "image_description": "Baked image for Dockerhost",
+    "source_image_family": "{{user `src_img_fam`}}",
+    "disk_type": "pd-ssd",
+    "disk_size": "{{user `disk_size`}}",
+    "network": "default",
+    "zone": "europe-west4-a",
+    "ssh_username": "dockerhost",
+    "machine_type": "{{user `machine_type`}}",
+    "tags": "docker-host"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "ansible",
+      "playbook_file": "../ansible/dockerhost.yaml"
+    }
+  ]
+}

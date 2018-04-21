@@ -4,3 +4,10 @@
 
 # .tfvars files
 *.tfvars
+.terraform/
+
+#ansible
+*.retry
+
+#packer
+variables.json

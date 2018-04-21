@@ -1,0 +1,3 @@
+project = "docker-201818"
+public_key_path = "~/.ssh/dockerhost.pub"
+private_key_path = "~/.ssh/dockerhost"
