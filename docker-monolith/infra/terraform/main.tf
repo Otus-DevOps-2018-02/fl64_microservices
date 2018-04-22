@@ -14,7 +14,7 @@ resource "google_compute_instance" "dockerhost" {
   count = "${var.dockerhost_count}" # Create two instances
 
   #name         = "reddit-app-${count.index}" #Uniq name
-  name = "docker-host-${count.index}"
+  name         = "docker-host-${count.index}"
   machine_type = "${var.machine_type}"
   zone         = "${var.zone}"
   tags         = ["docker-host"]
@@ -26,9 +26,10 @@ resource "google_compute_instance" "dockerhost" {
   }
 
   network_interface {
-    network       = "default"
+    network = "default"
+
     access_config = {
-    #  nat_ip = "${google_compute_address.dockerhost_ip.address}"
+      #  nat_ip = "${google_compute_address.dockerhost_ip.address}"
     }
   }
 

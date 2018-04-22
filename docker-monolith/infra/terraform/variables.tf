@@ -22,16 +22,15 @@ variable private_key_path {
 
 variable machine_type {
   description = "Machine type"
-  default = "n1-standard-1"
+  default     = "n1-standard-1"
 }
 
 variable disk_image {
   description = "Disk image"
-  default = "ubuntu-1604-lts"
+  default     = "ubuntu-1604-lts"
 }
 
 variable dockerhost_count {
   description = "Docker host instances count"
-  default = 2
+  default     = 2
 }
-

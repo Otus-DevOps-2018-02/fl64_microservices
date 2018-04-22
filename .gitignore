@@ -11,3 +11,6 @@
 
 #packer
 variables.json
+
+dockerhost
+dockerhost.pub
