@@ -46,7 +46,7 @@ None
 
 ## 14.2 How to run the project
 ### 14.2.1 Base
-- создать проект в GCP, включиьт доступ к API
+- создать проект в GCP, влключить доступ к API
 - настроить подключение к GCP, если оно не было ранее создано:
 ```
 install GCloud SDK (https://cloud.google.com/sdk/)
@@ -54,7 +54,7 @@ gcloud init
 gcloud auth application-default login
 ```
 - установить docker-machine (https://docs.docker.com/machine/install-machine/)
-- в GCP создать инстанс с использрванием dockermachine: docker-host
+- в GCP создать инстанс с использованием dockermachine: docker-host
 ```
 docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
 
