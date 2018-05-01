@@ -56,6 +56,8 @@ gcloud auth application-default login
 - установить docker-machine (https://docs.docker.com/machine/install-machine/)
 - в GCP создать инстанс с использованием dockermachine: docker-host
 ```
+export GOOGLE_PROJECT=docker-XXXXXX
+
 docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
 
 Enable API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=docker-XXXXXX&authuser=3)
