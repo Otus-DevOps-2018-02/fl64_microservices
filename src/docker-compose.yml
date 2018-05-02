@@ -1,0 +1,31 @@
+version: '3.3'
+services:
+  post_db:
+    image: mongo:${MONGOVER}
+    volumes:
+      - post_db:/data/db
+    networks:
+      - reddit
+  ui:
+    build: ./ui
+    image: ${USERNAME}/ui:${UIVER}
+    ports:
+      - ${HOSTPORT}:${CONTAINERPORT}/tcp
+    networks:
+      - reddit
+  post:
+    build: ./post-py
+    image: ${USERNAME}/post:${POSTVER}
+    networks:
+      - reddit
+  comment:
+    build: ./comment
+    image: ${USERNAME}/comment:${COMMENTVER}
+    networks:
+      - reddit
+
+volumes:
+  post_db:
+
+networks:
+  reddit:
