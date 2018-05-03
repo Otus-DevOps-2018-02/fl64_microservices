@@ -3,11 +3,11 @@ services:
   ui:
     command: "puma --debug -w 2"
     volumes:
-    - ${SRC_PATH:-.}/ui:/app
+    - ${SRC_PATH}/ui:/app
   post:
     volumes:
-    - ${SRC_PATH:-.}/post-py:/app
+    - ${SRC_PATH}/post-py:/app
   comment:
     command: "puma --debug -w 2"
     volumes:
-    - ${SRC_PATH:-.}/comment:/app
+    - ${SRC_PATH}/comment:/app
