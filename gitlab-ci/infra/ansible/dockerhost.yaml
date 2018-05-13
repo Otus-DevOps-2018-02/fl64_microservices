@@ -1,0 +1,40 @@
+---
+- name: Install docker
+  become: true
+  hosts: host #название группы, которое автоматически формируется скриптом my_gcp_inv.py (берется тег GCP вида tagpart1-tagpart2, в качестве группы используется tagpart2). Т.к. тег docker-host, то название группы - host.
+
+  tasks:
+  - name: Install docker dependencies
+    apt:
+        name: "{{ item }}"
+        state: present
+    with_items:
+    - "apt-transport-https"
+    - "ca-certificates"
+    - "software-properties-common"
+    - "cron"
+    - "python-pip"
+    tags: docker
+  - name: Add Docker apt key.
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+      state: present
+    tags: docker
+  - name: Add APT repository
+    apt_repository:
+      repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
+      state: present
+    tags: docker
+  - name: Install docker
+    apt:
+      name: "{{ item }}"
+      state: present
+      update_cache: yes
+    with_items:
+    - "docker-ce"
+    - "docker-compose"
+    tags: docker
+  - pip:
+      name: docker-py
+    tags: docker
