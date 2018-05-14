@@ -3,13 +3,18 @@
 
 - name: Install gitlab-ci-runners
   docker_container:
-    name: gitlab-runner-1
+    name: {{ item }}
     image: gitlab/gitlab-runner:latest
     state: started
     restart_policy: always
     volumes:
-    - '/srv/gitlab-runner-1/config:/etc/gitlab-runner'
+    - '/srv/{{ item }}/config:/etc/gitlab-runner'
     - '/var/run/docker.sock:/var/run/docker.sock'
-    command:
-      '/usr/bin/gitlab-runner register --non-interactive --executor "docker" --docker-image "alpine:latest" --url "http://35.204.158.99/" --registration-token "xxx" --description "docker-runner" --tag-list "docker" '
+  # Не работает :(
+  #  command:
+  #    '/usr/bin/gitlab-runner register --non-interactive --executor "docker" --docker-image "alpine:latest" --url "http://35.204.158.99/" --registration-token "xxx" --description "docker-runner" --tag-list "docker" '
   tags: gitlab-ci, gitlab-runner
+  with_sequence: start=0 end={{ runners_count }} format=gitlab-runner-%02x
+  register: result
+
+- name: Register runners
