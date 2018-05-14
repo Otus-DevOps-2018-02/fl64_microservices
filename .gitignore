@@ -19,3 +19,5 @@ dockerhost.pub
 #docker compose
 .env
 docker-compose.override.yml
+
+vault.key

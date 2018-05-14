@@ -343,10 +343,20 @@ gitlab/gitlab-runner:latest
 
 ### 17.2.3 * Автоматизация развертывания раннеров
 
+- Создана роль gitlab-ci-runners
+- Перейти в gitlab-ci/infra/ansible
+- Для роли необходим задать значения переменных:
+	- Токен для установки раннеров задать в переменной gitlabci_token
+	- Число раннеров задать в переменной runners_count
+- ansible-playbook playbooks/runners.yaml
+
+
 ## 17.3 Как проверить
 
 - перейти в: http://xx.xx.xx.xx/homework/example/pipelines, статус выполнения отображен как "passed"
 
 Задание со *:
+- Перейти в http://xx.xx.xx.xx/homework/example/settings/ci_cd, раскрыть "Runners settings". В списке будет отображаться установленны раннеры.
+![](https://i.imgur.com/YWeKlYA.png)
 - сообщения Gitlab CI отображаются в slack-канале: https://devops-team-otus.slack.com/messages/C9KNXLWAY/
 
