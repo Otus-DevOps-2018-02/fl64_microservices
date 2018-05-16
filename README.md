@@ -12,6 +12,11 @@ fl64 microservices repository
     - [14.1 What was done](#141-what-was-done)
     - [14.2 How to run the project](#142-how-to-run-the-project)
     - [14.3 How to check](#143-how-to-check)
+- [15. Homework-15: Docker-3](#15-homework-15-docker-3)
+    - [15.1 What was done](#151-what-was-done)
+    - [15.2 How to run the project](#152-how-to-run-the-project)
+    - [15.3 How to check](#153-how-to-check)
+
 
 # 13. Homework-13: docker-1
 
@@ -56,6 +61,8 @@ gcloud auth application-default login
 - установить docker-machine (https://docs.docker.com/machine/install-machine/)
 - в GCP создать инстанс с использованием dockermachine: docker-host
 ```
+export GOOGLE_PROJECT=docker-XXXXXX
+
 docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
 
 Enable API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=docker-XXXXXX&authuser=3)
@@ -88,7 +95,7 @@ docker push fl64/otus-reddit:1.0
 docker run --name reddit -d -p 9292:9292 fl64/otus-reddit:1.0
 ```
 
-### 14.2.1 *
+### 14.2.2 *
 
 Предполагается, что все действия происходят в каталоге `docker-monolith`:
 - создать к ssh-ключи для подключения к инстансам
@@ -113,3 +120,134 @@ chmod 0600 ~/.ssh/dockerhost*
 
 - `cd terraform`, запустить `terraform output`, в браузере перейти по адресам, отображенным в выводе.
 - перейти в GCP (https://console.cloud.google.com), Compute engine -> images, в списке будет присуствовать созданный packer'ом образ **docker-host-xxxxxxxxxx**
+
+
+# 15. Homework-15: docker-3
+
+## 15.1 What was done
+
+- созданы образы docker для приложения RedditApp
+- конфигурации Docekrfile приведены в порядок в соотвествии с Best practices (Hadolint)
+- приложение разворачивается на docker-machine в облаке GCP, при этом данные приложения, при остановке контейнеров сохраняются
+
+В рамках задания со *\**:
+- образа контейнеров запущены с другими сетевыми алиасами
+- объем образа UI оптимизирован путем использования образа alpine и удаления ненужных данных из образа:
+	- в первом случае размер робраза был сокращен с 394 Мб до 208 Мб
+	- во втором с 208 Мб до 55.6 Мб
+
+## 15.2 How to run the project
+### 15.2.1 Base
+- установить Google Cloud SDK, настроить подключение
+- запустить создание docker-machine
+```
+export GOOGLE_PROJECT=docker-XXXXXX
+
+docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
+
+eval $(docker-machine env docker-host)
+
+docker-machine ls
+```
+- настроить подключение к GCP, если оно не было ранее создано:
+```
+install GCloud SDK (https://cloud.google.com/sdk/)
+gcloud init
+gcloud auth application-default login
+```
+- установить docker-machine (https://docs.docker.com/machine/install-machine/)
+- в GCP создать инстанс с использованием dockermachine: docker-host
+
+```
+export GOOGLE_PROJECT=docker-XXXXXX
+
+docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
+
+Enable API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=docker-XXXXXX&authuser=3)
+
+docker-machine env docker-host
+
+docker-machine ls
+eval $(docker-machine env docker-host)
+docker-machine ssh docker-host
+```
+- добавить праивла для МЭ
+```
+gcloud compute firewall-rules create reddit-app --allow tcp:9292 --target-tags=docker-machine --description="Allow PUMA connections" --direction=INGRESS
+
+```
+- `cd src\`
+- прогнать контейнеры в линетере, убедится в отсуствии критичных замечаний
+```
+docker run --rm -i hadolint/hadolint < ui\Dockerfile
+docker run --rm -i hadolint/hadolint < post-py\Dockerfile
+docker run --rm -i hadolint/hadolint < comment\Dockerfile
+
+```
+- запустить билд контейнеров
+```
+docker build -t fl64/post:1.0 ./post-py
+docker build -t fl64/comment:1.0 ./comment
+docker build -t fl64/ui:1.0 ./ui
+```
+
+- создать сетевое окружение
+```
+docker network create reddit
+
+```
+- создать область для хранения данных БД
+```
+docker volume create reddit_db
+```
+
+- создать контейнеры и запустить их
+```
+docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db -v reddit_db:/data/db mongo:latest \
+&& docker run -d --network=reddit --network-alias=post fl64/post:1.0
+&& docker run -d --network=reddit --network-alias=comment fl64/comment:1.0
+&& docker run -d --network=reddit -p 9292:9292 fl64/ui:1.0
+```
+
+### 15.2.1 *
+
+Запуск контейнеров с другими сетевыми алиасами
+- убить все контейнеры! слава роботам!
+![](https://static1.squarespace.com/static/588bb37b893fc0698d8db5f6/t/58d96d5f03596eed05f898f9/1490644323456/?format=300w)
+```
+docker kill $(docker ps -q)
+
+```
+- запустить все с новыми алиасами
+```
+docker run -d --network=reddit --network-alias=another_post_db --network-alias=another_comment_db mongo:latest \
+&& docker run --env POST_DATABASE_HOST=another_post_db -d --network=reddit --network-alias=another_post fl64/post:1.0 \
+&& docker run --env COMMENT_DATABASE_HOST=another_comment_db -d --network=reddit --network-alias=another_comment fl64/comment:1.0 \
+&& docker run --env COMMENT_SERVICE_HOST=another_comment --env POST_SERVICE_HOST=another_post  -d --network=reddit -p 9292:9292 fl64/ui:1.0
+```
+
+### 15.2.2 *
+
+Оптимизация размера
+- убить все контейнеры
+```
+docker kill $(docker ps -q)
+
+```
+- запустить приложение с новой версией UI
+```
+docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db mongo:latest \
+&& docker run -d --network=reddit --network-alias=post fl64/post:1.0
+&& docker run -d --network=reddit --network-alias=comment fl64/comment:1.0
+&& docker run -d --network=reddit -p 9292:9292 fl64/ui:3.0
+```
+
+В части оптимизации были удалены пакеты для разработки, очищен кэш установленных пакетов.
+Для оптимизации использовались следующиме материалы и гугл:
+- http://blog.kontena.io/dockerizing-ruby-application/
+- https://blog.codeship.com/build-minimal-docker-container-ruby-apps/
+
+## 15.3 How to check
+
+- `docker-machine ip docker-host`
+- перейти по указанному адресу + порт 9292
