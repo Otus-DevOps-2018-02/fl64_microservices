@@ -44,6 +44,7 @@
     - '/srv/gitlab/data:/var/opt/gitlab'
     env:
       GITLAB_OMNIBUS_CONFIG: "external_url 'http://{{ ipify_public_ip }}'"
+  when: not (create_docker_compose_file | bool)
   tags: gitlab-ci
 
 - name: Install gitlab-ci-runner
@@ -55,4 +56,5 @@
     volumes:
     - '/srv/gitlab-runner/config:/etc/gitlab-runner'
     - '/var/run/docker.sock:/var/run/docker.sock'
+  when: not (create_docker_compose_file | bool)  
   tags: gitlab-ci, gitlab-runner
