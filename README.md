@@ -70,7 +70,7 @@ docker-machine ssh docker-host
 docker build -t reddit:latest .
 docker run --name reddit -d --network=host reddit:latest
 ```
-- не забыть добавить правила на МЭ
+- не забыть добавить правила для МЭ
 ```
 gcloud compute firewall-rules create reddit-app --allow tcp:9292 --target-tags=docker-machine --description="Allow PUMA connections" --direction=INGRESS
 
@@ -90,7 +90,7 @@ docker run --name reddit -d -p 9292:9292 fl64/otus-reddit:1.0
 ### 14.2.2 *
 
 Предполагается, что все действия происходят в каталоге `docker-monolith`:
-- создать к ssh-ключи для подключения к инстансам
+- создать к ssh-ключи для подключения к экземплярам VM
 ```
 ssh-keygen -t rsa -f dockerhost -C 'dockerhost' -q -N ''
 mv dockerhost* ~/.ssh/
@@ -101,10 +101,10 @@ chmod 0600 ~/.ssh/dockerhost*
 	- `terraform validate -var-file=terraform.tfvars`
 	- `terraform plan -var-file=terraform.tfvars`
 	- `terraform apply -var-file=terraform.tfvars`
-- `cd ../ansible`
+- `cd infra/ansible`
 	- `ansible-playbook dockerhost.yaml`
 	- `ansible-playbook dockerapp.yaml`
-- `cd ../packer`
+- `cd infra/packer`
 	- `packer validate -varfile=variables.json`
 	- `packer build -varfile=variables.json`
 
@@ -188,7 +188,7 @@ docker run -d --network=reddit --network-alias=post_db --network-alias=comment_d
 docker kill $(docker ps -q)
 
 ```
-- запустить все с новыми алиасами
+- запустить все контейнеры с новыми алиасами
 ```
 docker run -d --network=reddit --network-alias=another_post_db --network-alias=another_comment_db mongo:latest \
 && docker run --env POST_DATABASE_HOST=another_post_db -d --network=reddit --network-alias=another_post fl64/post:1.0 \
@@ -230,7 +230,7 @@ docker run -d --network=reddit --network-alias=post_db --network-alias=comment_d
 - произведена установка и создание файла конфигурации для docker-compose
 
 в рамках задания со *:
-- создан файл переопределений docker-compose.override.yml для запуска приложений контенеров в отладочном режиме, с возможностью редактирования кода приложений без необходимости пересоздания образа Docker.
+- создан файл переопределений docker-compose.override.yml для запуска приложений контенеров в отладочном режиме, с возможностью редактирования кода приложений без необходимости пересоздания образа Docker (для этого каталоги dockerhost монтируются в контейнеры).
 
 ## 16.2 Как запустить проект
 ### 16.2.1 Base
@@ -248,20 +248,18 @@ gcloud compute firewall-rules create reddit-app --allow tcp:9292 --target-tags=d
 ```
 - `cd src\`
 - в файле `.env.example` указаны переменные окружения, необходимые для запуска docker-compose. Необходимо переименовать его в `.env` и пре необходимости изменить значения параметров.
-- выполнить `docker-compose up -d`
-- запустятся 4 контенера приложения
+- выполнить `docker-compose up -d`, запустятся 4 контенера приложения
 - для остановки и удаления контейнеров выполнить:
 	- `docker-compose kill`
 	- `docker-compose rm -f`
 - создать сетевое окружение
 
-
 ### 16.2.2 *
 Имя контенера, создаваемого docker-compose имеет следующий шаблон:
 `<имя проекта>-<название образа>-<индекс>`
 По умолчанию docker-compose в качестве имени проекта использует название каталога из котрого он запускается. Для переопределения данного параметра необходимо (на выбор):
-1. Задать название проекта для переменной окружения COMPOSE_PROJECT_NAME
-2. Запустить docker-comose с параметром `-p / --project-name`. 
+1. Задать название проекта для переменной окружения **COMPOSE_PROJECT_NAME**
+2. Запустить docker-comose с параметром `-p / --project-name`.
 Src link: https://docs.docker.com/compose/reference/envvars/#compose_project_name
 
 ### 16.2.3 *
@@ -308,7 +306,7 @@ find . -regex ".*\(ui\|comment\|post-py\)" -type d -exec docker-machine scp -r {
 - `popd`
 
 P.S: Gitlab-CI создается при помощи Ansible, если нужно использовать только docker-compose, то:
-- для роли gitlab-ci установить значене пееменной create_docker_compose_file = true
+- для роли gitlab-ci установить значене пееменной **create_docker_compose_file = true**
 - перейти на созданную VM
 - `docker-compose up -d`
 - раннер создать "руками"
@@ -319,44 +317,44 @@ docker run -d --name gitlab-runner --restart always \
 gitlab/gitlab-runner:latest
 ```
 
-####
-- с использованием браузера перейти по адресу (внешний адрес созданной VM) http://xx.xx.xx.xx
-- задать пароль пользователя root, и осушествить вход
-- http://xx.xx.xx.xx/admin, Settings --> Sign-up restrictions, убрать маркер Sign-up enabled
-- http://xx.xx.xx.xx/dashboard/groups --> New group --> Group name: homework
-- http://xx.xx.xx.xx/projects/new --> Project-name: example
-- http://xx.xx.xx.xx/homework/example/settings/ci_cd --> Runners settings, сохранить токен для настройки раннера
+#### Настройка Gitlab-CI
+- перейти по ссылке  http://xx.xx.xx.xx, где xx.xx.xx.xx - внешний адрес созданной VM (можно получить путем выполнения `terraform output`)
+- на стартовой странице Gitlab CI задать пароль пользователя root, и выполнить вход
+- перейти по ссылке http://xx.xx.xx.xx/admin, Settings --> Sign-up restrictions, убрать маркер Sign-up enabled
+- перейти по ссылке http://xx.xx.xx.xx/dashboard/groups --> New group --> Group name: homework
+- перейти по ссылке http://xx.xx.xx.xx/projects/new --> Project-name: example
+- перейти по ссылке http://xx.xx.xx.xx/homework/example/settings/ci_cd --> Runners settings, сохранить токен для настройки раннера
 - перейти на созданную VM, далее выполнить настройку раннера `docker exec -it gitlab-runner gitlab-runner register`
-- http://xx.xx.xx.xx/homework/example/settings/ci_cd --> Runners settings, отобразится созданный раннер
-- `git remote add gitlab http://xx.xx.xx.xx/homework/example.git`
-- `git push gitlab gitlab-ci-1`
+- перейти по ссылке http://xx.xx.xx.xx/homework/example/settings/ci_cd --> Runners settings, отобразится созданный раннер
+- выполнить `git remote add gitlab http://xx.xx.xx.xx/homework/example.git`
+- выполнить `git push gitlab gitlab-ci-1`
 
 ### 17.2.2 * Интеграция Gitlab-CI + Slack
-- Перейти в https://devops-team-otus.slack.com/apps/new/A0F7XDUAZ-incoming-webhooksб 
+- Перейти в https://devops-team-otus.slack.com/apps/new/A0F7XDUAZ-incoming-webhooks
 	- выбрать требуемый для интеграции канал Slack
 	- скопировать значение Webhook
-- Перейти вhttp://35.204.50.67/homework/example/settings/integrations
-	- выбрать Slack notifications
+- Перейти в http://35.204.50.67/homework/example/settings/integrations
+	- выбрать "Slack notifications"
 	- установить маркер "active"
-	- в поле Webhook, добавить соответвующее значение полученное в Slack
-	- установить имя пользователя
+	- в поле "Webhook", добавить соответвующее значение полученное в Slack
+	- установить имя пользователя "Username"
 
 ### 17.2.3 * Автоматизация развертывания раннеров
 
 - Создана роль gitlab-ci-runners
 - Перейти в gitlab-ci/infra/ansible
 - Для роли необходим задать значения переменных:
-	- Токен для установки раннеров задать в переменной gitlabci_token
-	- Число раннеров задать в переменной runners_count
-- ansible-playbook playbooks/runners.yaml
+	- Токен для установки раннеров задать в переменной **gitlabci_token**
+	- Число раннеров задать в переменной **runners_count**
+- запустить плейбук для установки нужного числа раннеров `ansible-playbook playbooks/runners.yaml`
 
 
 ## 17.3 Как проверить
 
-- перейти в: http://xx.xx.xx.xx/homework/example/pipelines, статус выполнения отображен как "passed"
+- перейти по ссылке http://xx.xx.xx.xx/homework/example/pipelines, статус выполнения отображен как "passed"
 
 Задание со *:
-- Перейти в http://xx.xx.xx.xx/homework/example/settings/ci_cd, раскрыть "Runners settings". В списке будет отображаться установленны раннеры.
+- Перейти по ссылке http://xx.xx.xx.xx/homework/example/settings/ci_cd, раскрыть "Runners settings". В списке будут отображаться установленные раннеры.
 ![](https://i.imgur.com/YWeKlYA.png)
 - сообщения Gitlab CI отображаются в slack-канале: https://devops-team-otus.slack.com/messages/C9KNXLWAY/
 
