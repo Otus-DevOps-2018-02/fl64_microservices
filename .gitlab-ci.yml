@@ -48,7 +48,7 @@ staging:
     name: stage
     url: http://beta.example.com
 
-staging:
+production:
   stage: production
   when: manual
   script:
