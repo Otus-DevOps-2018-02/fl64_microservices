@@ -66,7 +66,7 @@ kill review:
     - tar -xvf secrets.tar.gz key.json
     - base=https://github.com/docker/machine/releases/download/v0.14.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine && install /tmp/docker-machine docker-machine
     - export GOOGLE_APPLICATION_CREDENTIALS=key.json
-    - ./docker-machine rm "${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}"
+    - ./docker-machine rm "${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}" -f
   when: manual
   environment:
     name: branch/$CI_COMMIT_REF_NAME
