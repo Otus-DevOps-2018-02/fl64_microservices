@@ -11,6 +11,7 @@ variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
 
 before_script:
+  - export homedir=$(pwd)
   - cd reddit
   - bundle install
 
@@ -41,7 +42,14 @@ deploy_dev_job:
 
 branch review:
   stage: review
-  script: echo "Deploy to  $CI_ENVIRONMENT_SLUG"
+  script:
+    - cd $homedir
+    - echo "Deploy to  ${CI_ENVIRONMENT_SLUG}"
+    - openssl enc -aes-256-cbc -d -in secrets.tar.gz.enc -out secrets.tar.gz -k ${GCPPASS} -md sha1
+    - tar -xvf secrets.tar.gz key.json
+    - base=https://github.com/docker/machine/releases/download/v0.14.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine && install /tmp/docker-machine docker-machine
+    - export GOOGLE_APPLICATION_CREDENTIALS=key.json
+    - ./docker-machine create --driver google --google-project docker-201818 --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-disk-size "50" --google-tags docker-host --google-zone europe-west4-a "${CI_COMMIT_REF_NAME}_${CI_PIPELINE_ID}"
   environment:
     name: branch/$CI_COMMIT_REF_NAME
     url: http://$CI_ENVIRONMENT_SLUG.example.com
@@ -49,6 +57,19 @@ branch review:
     - branches
   except:
     - master
+
+kill review:
+  stage: review
+  script:
+    - cd $homedir
+    - openssl enc -aes-256-cbc -d -in secrets.tar.gz.enc -out secrets.tar.gz -k ${GCPPASS} -md sha1
+    - tar -xvf secrets.tar.gz key.json
+    - base=https://github.com/docker/machine/releases/download/v0.14.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine && install /tmp/docker-machine docker-machine
+    - export GOOGLE_APPLICATION_CREDENTIALS=key.json
+    - ./docker-machine rm "${CI_COMMIT_REF_NAME}_${CI_PIPELINE_ID}"
+  when: manual
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
 
 staging:
   stage: stage
