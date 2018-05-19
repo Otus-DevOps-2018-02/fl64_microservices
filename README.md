@@ -9,6 +9,7 @@ fl64 microservices repository
 - [15. Homework-15: Docker-3](#15-homework-15-docker-3)
 - [16. Homework-16: Docker-4](#16-homework-16-docker-4)
 - [17. Homework-17: Gitlab-CI-1](#17-homework-17-gitlab-ci-1)
+- [18. Homework-18: Gitlab-CI-1](#18-homework-18-gitlab-ci-2)
 
 # 13. Homework-13: docker-1
 
@@ -358,3 +359,57 @@ gitlab/gitlab-runner:latest
 ![](https://i.imgur.com/YWeKlYA.png)
 - сообщения Gitlab CI отображаются в slack-канале: https://devops-team-otus.slack.com/messages/C9KNXLWAY/
 
+# 18. Homework-18. Gitlab-CI-2
+
+## 18.1 Что было сделано
+
+- pipeline расширен окружениями dev,stage,prod;
+- настроено динамическое окружение review для тестирования всех веток репозитория кроме master;
+
+в рамках задания со *, **:
+- в задаче build собирается образ приложения reddit и пушится на docker hub
+- при пуше изменений во все ветки кроме master создается тестовый сервер (docker-machine), на которую деплоится собранный образ приложения
+- удаление созданного сервера осуществляется путем запуска задачи "kill branch review"
+## 18.2 Как запустить проект
+### 18.2.1 Base
+```
+В Gitlab-CI
+- создать проект example2
+- подключить созданные ранее раннеры к проекту
+- настроить git для пуша в git-репозиторий gitlab-ci: `git add remote http://gitlab-ci-ip/homework/example2.git`
+
+### 18.2.3 *, **
+
+- Для GCP настроить сервисную учетную запись с павами доступа к проекту, выгрузить json-файл учетными данными сервисной учетной записи (key.json).
+- Заархивировать `tar -czvf secrets.tar.gz key.json`
+- Зашифровать с использованием сложного пароля `openssl enc -aes-256-cbc -salt -in secrets.tar.gz -out secrets.tar.gz.enc -k very_strong_password -md sha1`
+- Добавить в корень репозитория
+
+В Gitlab CI настроить значения "секретных переменных" (http://gitlab-ci-ip/homework/example2/settings/ci_cd)
+- DOCKER_USER - имя пользователя docker hub
+- DOCKER_PASS - пароль пользоателя docker hub
+- GCP_PASS - пароль для расшифровки данных сервисной учетной записи GCP - very_strong_password
+- GCP_PROJECT - название проекта GCP
+
+Краткое описание:
+- изменения вносятся в репозиторий и пущатся на GitLab-CI
+	- в процессе отладки стало понятно, что раннер необходимо собирать с параметром **--docker-privileged=true** 
+	- + использовать сервис  **services: docker:dind** необходимый для сборки контейнера
+- запускается задача Build для которой собирается docker-образ приложения и пушится на docker hub с тегом [Название ветки git]-[id pipeline]
+- в рамках задачи "branch review":
+	- создается docker-machine в GCP
+	- на ней поднимается приложение из docker hub созданное на этапе Build
+
+![](https://i.imgur.com/Lk6vuk3.png)
+
+## 18.3 Как проверить
+- внести какие-либо изменеие в репозитерии и выполнить пуш в репозиторий
+- перейти по ссылке http://gitlab-ci-ip/homework/example2/pipelines, статус выполнения отображен как "passed"
+
+Задание со *:
+- перейти в GCP
+- выбрать ip-адрес автоматически созданной docker-machine (имя машины: [Название ветки git]-[id pipeline])
+- убадится что правила МЭ позволяют попасть на сервер по порту 9292
+- перейти по адресу + порт 9292. Откроется тестируемое приложение.
+
+- при запуске задачи  kill branch review в Gitlab-CI тестовое окружение удалится.
