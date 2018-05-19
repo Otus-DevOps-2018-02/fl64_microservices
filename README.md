@@ -16,7 +16,10 @@ fl64 microservices repository
     - [15.1 What was done](#151-what-was-done)
     - [15.2 How to run the project](#152-how-to-run-the-project)
     - [15.3 How to check](#153-how-to-check)
-
+- [16. Homework-16: Docker-4](#16-homework-16-docker-4)
+    - [16.1 What was done](#161-what-was-done)
+    - [16.2 How to run the project](#162-how-to-run-the-project)
+    - [16.3 How to check](#163-how-to-check)
 
 # 13. Homework-13: docker-1
 
@@ -149,28 +152,6 @@ eval $(docker-machine env docker-host)
 
 docker-machine ls
 ```
-- настроить подключение к GCP, если оно не было ранее создано:
-```
-install GCloud SDK (https://cloud.google.com/sdk/)
-gcloud init
-gcloud auth application-default login
-```
-- установить docker-machine (https://docs.docker.com/machine/install-machine/)
-- в GCP создать инстанс с использованием dockermachine: docker-host
-
-```
-export GOOGLE_PROJECT=docker-XXXXXX
-
-docker-machine create --driver google --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
-
-Enable API (https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=docker-XXXXXX&authuser=3)
-
-docker-machine env docker-host
-
-docker-machine ls
-eval $(docker-machine env docker-host)
-docker-machine ssh docker-host
-```
 - добавить праивла для МЭ
 ```
 gcloud compute firewall-rules create reddit-app --allow tcp:9292 --target-tags=docker-machine --description="Allow PUMA connections" --direction=INGRESS
@@ -209,7 +190,7 @@ docker run -d --network=reddit --network-alias=post_db --network-alias=comment_d
 && docker run -d --network=reddit -p 9292:9292 fl64/ui:1.0
 ```
 
-### 15.2.1 *
+### 15.2.2 *
 
 Запуск контейнеров с другими сетевыми алиасами
 - убить все контейнеры! слава роботам!
@@ -226,7 +207,7 @@ docker run -d --network=reddit --network-alias=another_post_db --network-alias=a
 && docker run --env COMMENT_SERVICE_HOST=another_comment --env POST_SERVICE_HOST=another_post  -d --network=reddit -p 9292:9292 fl64/ui:1.0
 ```
 
-### 15.2.2 *
+### 15.2.3 *
 
 Оптимизация размера
 - убить все контейнеры
@@ -249,5 +230,61 @@ docker run -d --network=reddit --network-alias=post_db --network-alias=comment_d
 
 ## 15.3 How to check
 
-- `docker-machine ip docker-host`
-- перейти по указанному адресу + порт 9292
+- выполниьт `docker-machine ip docker-host`
+- перейти по адресу, указанному в выводе предыдущей команды + порт 9292
+
+# 16. Homework-16: docker-4
+
+## 16.1 What was done
+
+- изучены варианты запуска контенера с различными сетевыми драйверами (none, host, bridge);
+- произведена установка и создание файла конфигурации для docker-compose
+
+в рамках задания со *:
+- создан файл переопределений docker-compose.override.yml для запуска приложений контенеров в отладочном режиме, с возможностью редактирования кода приложений без необходимости пересоздания образа Docker.
+
+## 16.2 How to run the project
+### 16.2.1 Base
+- установить Google Cloud SDK, настроить подключение
+- запустить создание docker-machine
+```
+docker-machine create --driver google --google-project docker-XXXXXX --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-zone europe-west4-a docker-host
+
+eval $(docker-machine env docker-host)
+```
+- добавить праивла для МЭ
+```
+gcloud compute firewall-rules create reddit-app --allow tcp:9292 --target-tags=docker-machine --description="Allow PUMA connections" --direction=INGRESS
+
+```
+- `cd src\`
+- в файле `.env.example` указаны переменные окружения, необходимые для запуска docker-compose. Необходимо переименовать его в `.env` и пре необходимости изменить значения параметров.
+- выполнить `docker-compose up -d`
+- запустятся 4 контенера приложения
+- для остановки и удаления контейнеров выполнить:
+	- `docker-compose kill`
+	- `docker-compose rm -f`
+- создать сетевое окружение
+
+
+### 16.2.2 *
+Имя контенера, создаваемого docker-compose имеет следующий шаблон:
+`<имя проекта>-<название образа>-<индекс>`
+По умолчанию docker-compose в качестве имени проекта использует название каталога из котрого он запускается. Для переопределения данного параметра необходимо (на выбор):
+1. Задать название проекта для переменной окружения COMPOSE_PROJECT_NAME
+2. Запустить docker-comose с параметром `-p / --project-name`. 
+Src link: https://docs.docker.com/compose/reference/envvars/#compose_project_name
+
+### 16.2.3 *
+- Пример файла переопределений docker-compose представлен в файле `docker-compose.override.yml.example`. Необходимо переименовать его в `docker-compose.override.yml`
+- Предполагается, что тексты приложения находятся на хосте Docker-machine в каталоге `~/src`, для этого необходимо перенести тексты ПО путем выполения команды:
+```
+docker-machine ssh docker-host mkdir src; \
+find . -regex ".*\(ui\|comment\|post-py\)" -type d -exec docker-machine scp -r {} docker-host:src  \;
+
+```
+
+## 16.3 How to check
+
+- выполниьт `docker-machine ip docker-host`
+- перейти по адресу, указанному в выводе предыдущей команды + порт 9292
