@@ -53,6 +53,30 @@ services:
         aliases:
         - prometheus
 
+  blackbox-exporter:
+    image: prom/blackbox-exporter:${BLACKBOX_EXPORTER_VER}
+    ports:
+      - '9115:9115'
+    networks:
+      back-net:
+        aliases:
+        - blackbox-exporter
+      front-net:
+        aliases:
+        - blackbox-exporter
+
+
+  mongodb-exporter:
+    image: ${USER_NAME}/mongodb_exporter:${MONGODB_EXPORTER_VER}
+    ports:
+      - 9216:9216
+    environment:
+      - MONGODB_URL=mongodb://post_db
+    networks:
+      back-net:
+        aliases:
+        - mongodb-exporter
+
   node-exporter:
     image: prom/node-exporter:v0.15.2
     user: root
