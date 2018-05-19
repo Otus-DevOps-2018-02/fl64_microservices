@@ -372,14 +372,13 @@ gitlab/gitlab-runner:latest
 - удаление созданного сервера осуществляется путем запуска задачи "kill branch review"
 ## 18.2 Как запустить проект
 ### 18.2.1 Base
-```
+
 В Gitlab-CI
 - создать проект example2
 - подключить созданные ранее раннеры к проекту
 - настроить git для пуша в git-репозиторий gitlab-ci: `git add remote http://gitlab-ci-ip/homework/example2.git`
 
-### 18.2.3 *, **
-
+### 18.2.3 *
 - Для GCP настроить сервисную учетную запись с павами доступа к проекту, выгрузить json-файл учетными данными сервисной учетной записи (key.json).
 - Заархивировать `tar -czvf secrets.tar.gz key.json`
 - Зашифровать с использованием сложного пароля `openssl enc -aes-256-cbc -salt -in secrets.tar.gz -out secrets.tar.gz.enc -k very_strong_password -md sha1`
