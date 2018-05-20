@@ -78,7 +78,7 @@ services:
         - mongodb-exporter
 
   node-exporter:
-    image: prom/node-exporter:v0.15.2
+    image: prom/node-exporter:${NODE_EXPORTER_VER}
     user: root
     volumes:
       - /proc:/host/proc:ro
