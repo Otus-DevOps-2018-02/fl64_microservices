@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Otus-DevOps-2018-02/fl64_microservices.svg?branch=master)](https://travis-ci.org/Otus-DevOps-2018-02/fl64_microservices)
+
 # fl64_microservices
 fl64 microservices repository
 
