@@ -2,9 +2,16 @@ global:
   slack_api_url: 'https://hooks.slack.com/services/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'
 
 route:
-  receiver: 'slack-notifications'
+  receiver: 'slack-and-gmail-notifications'
 
 receivers:
-- name: 'slack-notifications'
+- name: 'slack-and-gmail-notifications'
   slack_configs:
   - channel: '#pavel_tishkov'
+  email_configs:
+  - to: devnullopsorg@gmail.com
+    from: devnullopsorg@gmail.com
+    smarthost: smtp.gmail.com:587
+    auth_username: "devnullopsorg@gmail.com"
+    auth_identity: "devnullopsorg@gmail.com"
+    auth_password: "gmail-app-token-here"
