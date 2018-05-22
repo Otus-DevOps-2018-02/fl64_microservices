@@ -28,7 +28,7 @@ init_fw:
 	&& gcloud compute firewall-rules create cadviser-default --allow tcp:8080 | true \
 	&& gcloud compute firewall-rules create grafana-default --allow tcp:3000 | true \
 	&& gcloud compute firewall-rules create alert-manager-default --allow tcp:9093 | true \
-	&& gcloud compute firewall-rules create docker-mon-default --allow tcp:9323 | true \
+	&& gcloud compute firewall-rules create docker-mon-default --allow tcp:9323 | true
 destroy: destroy_fw destroy_vm
 destroy_fw:
 	export GOOGLE_PROJECT=$(GOOGLE_PROJECT) \
@@ -37,7 +37,7 @@ destroy_fw:
 	&& gcloud compute firewall-rules delete cadviser-default --quiet | true \
 	&& gcloud compute firewall-rules delete grafana-default --quiet | true \
 	&& gcloud compute firewall-rules delete alert-manager-default --quiet | true \
-	&& gcloud compute firewall-rules delete docker-mon-default --quiet | true \
+	&& gcloud compute firewall-rules delete docker-mon-default --quiet | true
 destroy_vm:
 	export GOOGLE_PROJECT=$(GOOGLE_PROJECT) \
 	&& docker-machine rm $(VM_NAME) -f
