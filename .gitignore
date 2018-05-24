@@ -21,3 +21,7 @@ dockerhost.pub
 docker-compose.override.yml
 
 vault.key
+
+#GCP creds
+key.json
+secrets.tar.gz

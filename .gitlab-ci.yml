@@ -3,21 +3,42 @@ image: ruby:2.4.2
 stages:
   - build
   - test
-  - deploy
+  - review
+  - stage
+  - production
 
 variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
+  GCP_ZONE: europe-west4-a
+#  Dont forget set secret vars:
+#  GCP_PROJECT: docker-xxxxxx
+#  GCP_PASS: ********
+#  DOCKER_USER
+#  DOCKER_PASS
 
 before_script:
-  - cd reddit
-  - bundle install
+  - export homedir=$(pwd)
+#  - cd reddit
+#  - bundle install
 
 build_job:
+  image: docker:latest
   stage: build
+  services:
+  - docker:dind # Required to run docker commands
+  # https://github.com/ayufan/gitlab-ci-multi-runner/blob/master/docs/executors/docker.md#the-services-keyword
   script:
     - echo 'Building'
+    - cd $homedir
+    - docker login --username ${DOCKER_USER} --password ${DOCKER_PASS}
+    - docker build -t ${DOCKER_USER}/reddit:${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID} docker-monolith
+    - docker push ${DOCKER_USER}/reddit:${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}
 
 test_unit_job:
+  before_script:
+  - export homedir=$(pwd)
+  - cd reddit
+  - bundle install
   stage: test
   services:
     - mongo:latest
@@ -29,7 +50,74 @@ test_integration_job:
   script:
     - echo 'Testing 2'
 
-deploy_job:
-  stage: deploy
+deploy_dev_job:
+  stage: review
   script:
     - echo 'Deploy'
+  environment:
+    name: dev
+    url: http://dev.example.com
+
+branch review:
+  image: docker:latest
+  stage: review
+  #services:
+  #- docker:dind # Required to run docker commands
+  script:
+    - cd $homedir
+    - echo "Deploy to  ${CI_ENVIRONMENT_SLUG}"
+    - apk update
+    - apk add openssl tar curl docker
+    - openssl enc -aes-256-cbc -d -in secrets.tar.gz.enc -out secrets.tar.gz -k ${GCP_PASS} -md sha1
+    - tar -xvf secrets.tar.gz key.json
+    - base=https://github.com/docker/machine/releases/download/v0.14.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine && install /tmp/docker-machine docker-machine
+    - export GOOGLE_APPLICATION_CREDENTIALS=key.json
+    - ./docker-machine create --driver google --google-project "${GCP_PROJECT}" --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts --google-machine-type n1-standard-1 --google-disk-size "50" --google-tags docker-host --google-zone "${GCP_ZONE}" "${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}"
+    - eval $(./docker-machine env --shell sh ${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID})
+    - docker run -d -p 9292:9292 --name redditapp ${DOCKER_USER}/reddit:${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.example.com
+  only:
+    - branches
+  except:
+    - master
+
+kill branch review:
+  stage: review
+  image: google/cloud-sdk:alpine
+  script:
+    - cd $homedir
+    - apk update
+    - apk add openssl tar
+    - openssl enc -aes-256-cbc -d -in secrets.tar.gz.enc -out secrets.tar.gz -k ${GCP_PASS} -md sha1
+    - tar -xvf secrets.tar.gz key.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud config set project "${GCP_PROJECT}"
+    - gcloud compute instances delete "${CI_COMMIT_REF_NAME}-${CI_PIPELINE_ID}" --zone=${GCP_ZONE} --quiet
+  when: manual
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
+
+staging:
+  stage: stage
+  when: manual
+  only:
+    - /^\d+\.\d+.\d+/
+  script:
+    - echo 'Deploy'
+  environment:
+    name: stage
+    url: http://beta.example.com
+
+production:
+  stage: production
+  when: manual
+  only:
+    - /^\d+\.\d+.\d+/
+  script:
+    - echo 'Deploy'
+  environment:
+    name: production
+    url: http://example.com
