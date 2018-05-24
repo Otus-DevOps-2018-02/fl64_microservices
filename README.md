@@ -12,6 +12,8 @@ fl64 microservices repository
 - [16. Homework-16: Docker-4](#16-homework-16-docker-4)
 - [17. Homework-17: Gitlab-CI-1](#17-homework-17-gitlab-ci-1)
 - [18. Homework-18: Gitlab-CI-1](#18-homework-18-gitlab-ci-2)
+- [19. Homework-19: Monitoring-1](#19-homework-19-monitoring-1)
+- [20. Homework-20: Monitoring-2](#20-homework-20-monitoring-2)
 
 # 13. Homework-13: docker-1
 
@@ -451,3 +453,54 @@ gitlab/gitlab-runner:latest
 - перейти по адресу: http://docker-machine-ip:9292 - отобразиться запущенное приложение
 - перейти по адресу: http://docker-machine-ip:9090 - отобразиться система мониторинга prometheus, в разделе Status --> Targets отображаются контролируемые сервисы
 ![](https://i.imgur.com/NcbwWFO.png)
+
+# 20. Homework-20. Monitoring-2
+
+## 20.1 Что было сделано
+
+- установлены и настроены сервисы: cAdvisor, Grafana, AlertManger
+- созданы дашборды и настроены графики для различных метрик
+- настроена отправка алертов в канал Slack (https://devops-team-otus.slack.com/messages/C9KNXLWAY)
+
+задание со *, **:
+- обновлен Makefile для установки новых сервисов
+- prometheus настроен для сбора нативных метрик docker (экспериментальный режим)
+- настроена отправка алертов на email (gmail)
+
+## 20.2 Как запустить проект ( Base + * )
+Все действия выполняются в корне репозитория.
+в makefile задать значения переменных:
+- USER_NAME - имя пользователя для docker hub
+- VM_NAME - имя создаваемой VM
+- GOOGLE_PROJECT- название проекта в GCP
+
+Далее:
+- `cp docker/.env.example docker/.env` - при необходимости внести изменения в .env
+- `make init` - создать docker-machine в GCP + правила МЭ
+- `eval $(docker-machine env VM_NAME)`, VM_NAME - имя созданного сервера
+- для файла `monitoring/alertmanager/config.yml` - задать аккаунт (google) + app-token
+- `make build` - создать все контенеры
+- `make push` - запушить все созданные контейнеры в docker hub
+- `make start` - запустить приложение и сервисы мониторинга
+
+- `make restart` - переапустить все контенеры, если некоторые из них пересоздавались через docker build
+
+- чтобы пересобрать все образы и перезапустить их на сервере, выполнить: `make rebuild`
+
+После окончания работы:
+- `make destroy` - удалить созданный сервер docker-machine + созданные правила МЭ
+
+NB! cAdvisor не работает при наличии контейнеров без тегов
+
+## 20.3 Как проверить
+- выполнить `docker-machine ip VM_NAME`
+- запустить `make teststop`
+- через 1-2 минуты в slack-канал и на почту придут сообщения о проблеме с сервисом post
+- cAdvisor доступен по адресу http://docker-machine-ip:8080
+- Grafana доступна по адресу http://docker-machine-ip:3000
+- AlertManager доступен по адресу http://docker-machine-ip:9093
+- Prometheus доступен по адресу http://docker-machine-ip:9090
+	- во вкладке Alerts - отображаются настроенные алерты
+	- во вкладке Targets - отображаются источники метрик
+
+![](https://i.imgur.com/msWAYNr.png)
