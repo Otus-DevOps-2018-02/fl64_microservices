@@ -1,0 +1,109 @@
+version: '3.3'
+services:
+  post_db:
+    image: mongo:${MONGO_VER}
+    volumes:
+      - post_db:/data/db
+    networks:
+      back-net:
+        aliases:
+        - post_db
+        - comment_db
+  ui:
+    image: ${USER_NAME}/ui:${UI_VER}
+    ports:
+      - ${UI_HOSTPORT}:${UI_CONTAINERPORT}/tcp
+    networks:
+      front-net:
+  post:
+    image: ${USER_NAME}/post:${POST_VER}
+    networks:
+      back-net:
+        aliases:
+        - post
+      front-net:
+        aliases:
+        - post
+
+  comment:
+    image: ${USER_NAME}/comment:${COMMENT_VER}
+    networks:
+      back-net:
+        aliases:
+        - comment
+      front-net:
+        aliases:
+        - comment
+
+  prometheus:
+    image: ${USER_NAME}/prometheus:${PROMETHEUS_VER}
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+    networks:
+      back-net:
+        aliases:
+        - prometheus
+      front-net:
+        aliases:
+        - prometheus
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:${BLACKBOX_EXPORTER_VER}
+    ports:
+      - '9115:9115'
+    networks:
+      back-net:
+        aliases:
+        - blackbox-exporter
+      front-net:
+        aliases:
+        - blackbox-exporter
+
+
+  mongodb-exporter:
+    image: ${USER_NAME}/mongodb_exporter:${MONGODB_EXPORTER_VER}
+    ports:
+      - 9216:9216
+    environment:
+      - MONGODB_URL=mongodb://post_db
+    networks:
+      back-net:
+        aliases:
+        - mongodb-exporter
+
+  node-exporter:
+    image: prom/node-exporter:${NODE_EXPORTER_VER}
+    user: root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+    networks:
+      back-net:
+        aliases:
+        - node-exporter
+volumes:
+  post_db:
+  prometheus_data:
+
+networks:
+  back-net:
+    driver: bridge
+    ipam:
+     config:
+     - subnet: 10.0.2.0/24
+  front-net:
+    driver: bridge
+    ipam:
+     config:
+     - subnet: 10.0.1.0/24

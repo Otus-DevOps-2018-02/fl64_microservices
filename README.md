@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Otus-DevOps-2018-02/fl64_microservices.svg?branch=master)](https://travis-ci.org/Otus-DevOps-2018-02/fl64_microservices)
+
 # fl64_microservices
 fl64 microservices repository
 
@@ -372,14 +374,13 @@ gitlab/gitlab-runner:latest
 - удаление созданного сервера осуществляется путем запуска задачи "kill branch review"
 ## 18.2 Как запустить проект
 ### 18.2.1 Base
-```
+
 В Gitlab-CI
 - создать проект example2
 - подключить созданные ранее раннеры к проекту
 - настроить git для пуша в git-репозиторий gitlab-ci: `git add remote http://gitlab-ci-ip/homework/example2.git`
 
-### 18.2.3 *, **
-
+### 18.2.3 *
 - Для GCP настроить сервисную учетную запись с павами доступа к проекту, выгрузить json-файл учетными данными сервисной учетной записи (key.json).
 - Заархивировать `tar -czvf secrets.tar.gz key.json`
 - Зашифровать с использованием сложного пароля `openssl enc -aes-256-cbc -salt -in secrets.tar.gz -out secrets.tar.gz.enc -k very_strong_password -md sha1`
@@ -413,3 +414,40 @@ gitlab/gitlab-runner:latest
 - перейти по адресу + порт 9292, откроется тестируемое приложение reddit
 
 - при запуске задачи  kill branch review в Gitlab-CI тестовое окружение удалится.
+
+# 19. Homework-19. Monitoring-1
+
+## 19.1 Что было сделано
+
+- приведен в порядок репозиторий 8);
+- создан и настроен docker-образ для prometheus:
+
+задание со *, **:
+- собран докер образ mongodb_exporter (за основу бралась версия 0.4.0 из репозитория percona https://github.com/percona/mongodb_exporter/tree/v0.4.0), prometheus настроен на сбор метрик с mongodb;
+- Blackbox exporter (использовался готовы от prometheus :) ) прикручен к prometheus и настроен мониторинг работы http-сервисов приложения reddit;
+- создан Makefile для автоматизации рутинных действий;
+
+## 19.2 Как запустить проект
+### 19.2.1 Base + *
+Все действия выполняются в корне репозитория.
+в makefile задать значения переменных:
+- USER_NAME - имя пользователя для docker hub
+- VM_NAME - имя создаваемой VM
+- GOOGLE_PROJECT- название проекта в GCP
+
+Далее:
+- `cp docker/.env.example docker/.env` - при необходимости внести изменения в .env
+- `make init` - создать docker-machine в GCP
+- `eval $(docker-machine env VM_NAME)`, VM_NAME - имя созданного сервера
+- `make app_start` - запустить созданные приложения
+
+- чтобы пересобрать все образы и перезапустить их на сервере, выполнить: `make rebuild`
+
+После окончания работы:
+- `make destroy` - удалить созданный сервер docker-machine
+
+## 19.3 Как проверить
+- выполнить `docker-machine ip VM_NAME`
+- перейти по адресу: http://docker-machine-ip:9292 - отобразиться запущенное приложение
+- перейти по адресу: http://docker-machine-ip:9090 - отобразиться система мониторинга prometheus, в разделе Status --> Targets отображаются контролируемые сервисы
+![](https://i.imgur.com/NcbwWFO.png)
