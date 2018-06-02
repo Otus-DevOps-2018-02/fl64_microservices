@@ -9,8 +9,14 @@ services:
         aliases:
         - post_db
         - comment_db
+
   ui:
     image: ${USER_NAME}/ui:${UI_VER}
+    environment:
+    - POST_SERVICE_HOST=post
+    - POST_SERVICE_PORT=5000
+    - COMMENT_SERVICE_HOST=comment
+    - COMMENT_SERVICE_PORT=9292
     ports:
       - ${UI_HOSTPORT}:${UI_CONTAINERPORT}/tcp
     networks:
@@ -45,6 +51,9 @@ services:
 
   comment:
     image: ${USER_NAME}/comment:${COMMENT_VER}
+    environment:
+    - COMMENT_DATABASE_HOST=comment_db
+    - COMMENT_DATABASE=comments
     networks:
       back-net:
         aliases:
