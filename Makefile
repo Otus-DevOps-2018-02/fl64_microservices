@@ -3,13 +3,15 @@ USER_NAME = fl64
 VM_NAME = vm1
 #dont forget set var. For example GOOGLE_PROJECT = docker-201818
 GOOGLE_PROJECT = docker-201818
+APP_TAG = logging
 
 .PHONY: init init_vm init_fw
 		destroy destroy_fw destroy_vm ip
-		build build_ui build_comment build_post build_prometheus build_mongodb_exporter build_alert_manager
-		push push_ui push_comment push_post push_prometheus push_mongodb_exporter push_alert_manager
+		build build_ui build_comment build_post build_prometheus build_mongodb_exporter build_alert_manager build_fluentd
+		push push_ui push_comment push_post push_prometheus push_mongodb_exporter push_alert_manager push_fluentd
 		app_start app_stop app_restart
 		mon_start mon_stop mon_restart
+		log_start log_stop log_restart
 		start stop restart rebuild
 
 ### Docker machine section
@@ -57,22 +59,27 @@ build_prometheus:
 build_mongodb_exporter:
 	docker build -t $(USER_NAME)/mongodb_exporter monitoring/mongodb_exporter
 build_alert_manager:
-	docker build -t $(USER_NAME)/alertmanager monitoring/alertmanager/
+	docker build -t $(USER_NAME)/alertmanager monitoring/alertmanager
+build_fluentd:
+	docker build -t $(USER_NAME)/fluentd logging/fluentd
+
 
 ### Push images section
 push: push_ui push_comment push_post push_prometheus push_mongodb_exporter push_alert_manager
 push_ui:
-	docker push $(USER_NAME)/ui
+	docker push $(USER_NAME)/ui:$(APP_TAG)
 push_comment:
-	docker push $(USER_NAME)/comment
+	docker push $(USER_NAME)/comment:$(APP_TAG)
 push_post:
-	docker push $(USER_NAME)/post
+	docker push $(USER_NAME)/post:$(APP_TAG)
 push_prometheus:
 	docker push $(USER_NAME)/prometheus
 push_mongodb_exporter:
 	docker push $(USER_NAME)/mongodb_exporter
 push_alert_manager:
 	docker push $(USER_NAME)/alertmanager
+push_fluentd:
+	docker push $(USER_NAME)/fluentd
 
 ### App section
 app_start:
@@ -87,6 +94,14 @@ mon_start:
 mon_stop:
 	cd docker && docker-compose -f docker-compose-monitoring.yml down | true
 mon_restart: mon_stop mon_start
+
+### Monitoring section
+log_start:
+	cd docker && docker-compose -f docker-compose-logging.yml up -d | true
+log_stop:
+	cd docker && docker-compose -f docker-compose-logging.yml down | true
+log_restart: log_stop log_start
+
 
 ### App and mon section
 start:
