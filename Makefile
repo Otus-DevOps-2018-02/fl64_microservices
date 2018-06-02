@@ -47,7 +47,7 @@ ip:
 	docker-machine ip $(VM_NAME)
 
 ### Build section
-build: build_ui build_comment build_post build_prometheus build_mongodb_exporter build_alert_manager
+build: build_ui build_comment build_post build_prometheus build_mongodb_exporter build_alert_manager build_fluentd
 build_ui:
 	cd src/ui && bash docker_build.sh
 build_comment:
@@ -63,9 +63,17 @@ build_alert_manager:
 build_fluentd:
 	docker build -t $(USER_NAME)/fluentd logging/fluentd
 
+### Build bugged
+build_bugged: build_bugged_ui build_bugged_comment build_bugged_post
+build_bugged_ui:
+	cd src/bugged-code-master/ui && bash docker_build.sh
+build_bugged_comment:
+	cd src/bugged-code-master/comment && bash docker_build.sh
+build_bugged_post:
+	cd src/bugged-code-master/post-py && bash docker_build.sh
 
 ### Push images section
-push: push_ui push_comment push_post push_prometheus push_mongodb_exporter push_alert_manager
+push: push_ui push_comment push_post push_prometheus push_mongodb_exporter push_alert_manager push_fluentd
 push_ui:
 	docker push $(USER_NAME)/ui:$(APP_TAG)
 push_comment:
