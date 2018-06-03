@@ -463,7 +463,7 @@ gitlab/gitlab-runner:latest
 - созданы дашборды и настроены графики для различных метрик
 - настроена отправка алертов в канал Slack (https://devops-team-otus.slack.com/messages/C9KNXLWAY)
 
-задание со *, **:
+задание со *:
 - обновлен Makefile для установки новых сервисов
 - prometheus настроен для сбора нативных метрик docker (экспериментальный режим)
 - настроена отправка алертов на email (gmail)
@@ -514,7 +514,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 - создан файл docker-compose-logging.yml позволяюший установить компоненты системы логирования (fluentd, ELK, zipkin)
 - проведены настройки fluentd, ELK
 
-задание со *, **:
+задание со *:
 - в параметры фильтров fluentd добавлен код парсинга логов сервиса UI
 - найдена проблема работоспособности сбойного сервиса (https://github.com/Artemmkin/bugged-code)
 
@@ -528,15 +528,15 @@ NB! cAdvisor не работает при наличии контейнеров 
 `make init USER_NAME=user VM_NAME=logging GOOGLE_PROJECT=docker-012345`
 
 Далее:
-- `cp docker/.env.logging.example docker/.env` - при необходимости внести изменения в .env
-- `make init` - создать docker-machine в GCP + правила МЭ
-- `eval $(docker-machine env VM_NAME)`, VM_NAME - имя созданного сервера
+- `cp docker/.env.logging.example docker/.env` - создать файл с переменными окружения, в который при необходимости внести изменения;
+- `make init` - создать docker-machine в GCP + правила МЭ;
+- `eval $(docker-machine env VM_NAME)`, где VM_NAME - имя созданного сервера Docker-machine.
 
-- `make build` - создать все контенеры приложения
-- `make build_log` - создать контенеры системы логирования
+- `make build` - создать контенеры приложения (ui, post, comment)
+- `make build_log` - создать контенеры системы логирования (fluentd)
 
-- `make log_start` - запустить сервсиы лонирования
-- `make app_start` - запустить приложение
+- `make log_start` - запустить сервсиы логирования (fluentd, ElasticSearch, Kibana, Zipkin)
+- `make app_start` - запустить приложение (ui, post, comment)
 
 После окончания работы:
 - `make destroy` - удалить созданный сервер docker-machine + созданные правила МЭ
