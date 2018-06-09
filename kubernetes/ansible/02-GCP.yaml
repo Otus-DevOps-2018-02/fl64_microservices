@@ -1,0 +1,32 @@
+---
+- name: Install kubectl
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+
+  tasks:
+  - name: Create network
+    gce_net:
+      name: kubernetes-the-hard-way
+      ipv4_range: '10.240.0.0/24'
+      mode: custom
+      subnet_region: europe-west4
+      subnet_name: "kubernetes"
+      state: "present"
+
+  - name: FW allow internal
+    gce_net:
+      name: kubernetes-the-hard-way
+      fwname: kubernetes-the-hard-way-allow-internal
+      allowed: 'icmp;tcp;udp'
+      src_range: ['10.240.0.0/24', '10.200.0.0/16']
+      state: present
+
+  - name: FW allow external
+    gce_net:
+      name: kubernetes-the-hard-way
+      fwname: "kubernetes-the-hard-way-allow-external"
+      allowed: 'icmp;tcp:22,6443'
+      src_range: ['0.0.0.0/0']
+      state: present
