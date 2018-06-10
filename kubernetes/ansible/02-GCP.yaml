@@ -1,32 +1,847 @@
 ---
-- name: Install kubectl
+- name: GCP + PKI + Configs
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  vars:
+    project_id: docker-201818
+    credentials_file: credentials.json
+    service_account_email: k8s-service-account@docker-201818.iam.gserviceaccount.com
+    region: europe-west4
+    zone: europe-west4-a
+    machine_type: n1-standard-1
+    image: ubuntu-1804-bionic-v20180522
+    controllers_count: 3
+    workers_count: 3
+    metadata: '{"sshKeys":"kubernetes:{{ lookup("file", "ssh/kubernetes.pub") }}"}'
+
+########################################################################################
+### K8s networking
+########################################################################################
+
+  tasks:
+  - name: Create network
+    gce_net:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: kubernetes-the-hard-way
+      ipv4_range: '10.240.0.0/24'
+      mode: custom
+      subnet_region: "{{ region }}"
+      subnet_name: "kubernetes"
+      state: "present"
+    tags: gcp
+
+  - name: FW allow internal
+    gce_net:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: kubernetes-the-hard-way
+      fwname: kubernetes-the-hard-way-allow-internal
+      allowed: 'icmp;tcp;udp'
+      src_range: ['10.240.0.0/24', '10.200.0.0/16']
+      state: present
+    tags: gcp
+
+  - name: FW allow external
+    gce_net:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: kubernetes-the-hard-way
+      fwname: "kubernetes-the-hard-way-allow-external"
+      allowed: 'icmp;tcp:22,6443'
+      src_range: ['0.0.0.0/0']
+      state: present
+    tags: gcp
+
+  - name: Register external IP
+    gce_eip:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: kubernetes-the-hard-way
+      region: "{{ region }}"
+      state: present
+    register: external_ip
+    tags: gcp
+
+  - name: Show external IP
+    debug:
+      msg: "{{ external_ip.address }}"
+    tags: gcp
+
+########################################################################################
+### Create k8s controllers
+########################################################################################
+
+  - name: Create k8s controllers
+    gce:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: "controller-{{ item }}"
+      machine_type: "{{ machine_type }}"
+      disk_size: 200
+      ip_forward: yes
+      image: "{{ image }}"
+      metadata: '{"sshKeys":"kubernetes:{{ lookup("file", "ssh/kubernetes.pub")}}" }'
+      service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
+      network: kubernetes-the-hard-way
+      subnetwork: kubernetes
+      zone: "{{ zone }}"
+    with_sequence: start=0 count={{ controllers_count }}
+    register: controllers
+    tags: gcp
+
+  - name: debug
+    debug:
+      msg: "Controler name: {{ item.instance_data[0].name }} with external ip: {{ item.instance_data[0].public_ip }} created"
+    with_items:
+    - "{{ controllers.results }}"
+    tags: gcp
+
+  - name: Wait for SSH for controllers
+    wait_for:
+      delay: 1
+      host: "{{ item.instance_data[0].public_ip }}"
+      port: 22
+      state: started
+      timeout: 30
+    with_items: "{{ controllers.results }}"
+    tags: gcp
+
+  - name: Save k8s controllers to inventory
+    add_host:
+      hostname: "{{ item.instance_data[0].name }}"
+      groupname: controllers
+      ansible_host: "{{ item.instance_data[0].public_ip }}"
+      private_ip: "{{ item.instance_data[0].private_ip }}"
+      ansible_user: kubernetes
+      ansible_ssh_private_key_file: ssh/kubernetes
+    with_items: "{{ controllers.results }}"
+    tags: gcp
+
+########################################################################################
+### Create k8s workers
+########################################################################################
+
+  - name: Create k8s workers
+    gce:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      name: "worker-{{ item }}"
+      machine_type: "{{ machine_type }}"
+      disk_size: 200
+      ip_forward: yes
+      image: "{{ image }}"
+      metadata: '{"sshKeys":"kubernetes:{{ lookup("file", "ssh/kubernetes.pub") }}","pod-cidr":"10.200.{{ item }}.0/24"}'
+      service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
+      network: kubernetes-the-hard-way
+      subnetwork:  kubernetes
+      zone: "{{ zone }}"
+    with_sequence: start=0 count={{ workers_count }}
+    register: workers
+    tags: gcp, inventory
+
+  - name: debug
+    debug:
+      msg: "Controler name: {{ item.instance_data[0].name }} with external ip: {{ item.instance_data[0].public_ip }} created"
+    with_items:
+    - "{{ workers.results }}"
+    tags: gcp, inventory
+
+  - name: Wait for SSH for controllers
+    wait_for:
+      delay: 1
+      host: "{{ item.instance_data[0].public_ip }}"
+      port: 22
+      state: started
+      timeout: 30
+    with_items: "{{ workers.results }}"
+    tags: gcp
+
+## Check: ssh -o 'IdentitiesOnly=yes' -i ssh/kubernetes kubernetes@<ip>
+
+  - name: Save k8s controllers to inventory
+    add_host:
+      hostname: "{{ item.instance_data[0].name }}"
+      groupname: workers
+      ansible_host: "{{ item.instance_data[0].public_ip }}"
+      private_ip: "{{ item.instance_data[0].private_ip }}"
+      ansible_user: kubernetes
+      ansible_ssh_private_key_file: ssh/kubernetes
+    with_items: "{{ workers.results }}"
+    tags: gcp, inventory
+
+########################################################################################
+### PKI Section
+########################################################################################
+
+  - name: Creates directory
+    file:
+      path: ./pki
+      state: directory
+    tags: pki
+
+#### CA
+  - name: Copy PKI config files to PKI dir
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+    - { src: "ca-config.json", dest: "./pki/ca-config.json"}
+#    - { src: "ca-csr.json", dest: "./pki/ca-csr.json"}
+#    - { src: "admin-csr.json", dest: "./pki/admin-csr.json"}
+#    - { src: "kube-controller-manager-csr.json", dest: "./pki/kube-controller-manager-csr.json"}
+#    - { src: "kube-proxy-csr.json", dest: "./pki/kube-proxy-csr.json"}
+#    - { src: "kube-scheduler-csr.json", dest: "./pki/kube-scheduler-csr.json"}
+    tags: pki
+
+  - name: Generate k8s csr-configs
+    template:
+      src: template-csr.json.j2
+      dest: "pki/{{ item.filename }}-csr.json"
+    vars:
+      cn: "{{ item.cn }}"
+      o: "{{ item.o }}"
+      ou: "{{ item.o }}"
+    with_items:
+    - { filename: "ca", cn: "Kubernetes", o: "Kubernetes", ou: "CA"}
+    - { filename: "admin", cn: "admin", o: "system:masters", ou: "Kubernetes The Hard Way"}
+    - { filename: "kube-controller-manager", cn: "system:kube-controller-manager", o: "system:kube-controller-manager", ou: "Kubernetes The Hard Way"}
+    - { filename: "kube-proxy", cn: "system:kube-proxy", o: "system:kube-proxy", ou: "Kubernetes The Hard Way"}
+    - { filename: "kube-scheduler", cn: "system:kube-scheduler", o: "system:kube-schedulery", ou: "Kubernetes The Hard Way"}
+    - { filename: "kubernetes", cn: "kubernetes", o: "Kubernetes", ou: "Kubernetes The Hard Way"}
+    - { filename: "service-account", cn: "service-account", o: "Kubernetes", ou: "Kubernetes The Hard Way"}
+    tags: pki
+
+  - name: Generate the CA configuration file, certificate, and private key
+    shell: cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+    args:
+      chdir: pki
+      creates: ca-key.pem
+    tags: pki
+
+  - name: Generate k8s certificates and private kyes
+    shell: >
+      cfssl gencert \
+      -ca=ca.pem \
+      -ca-key=ca-key.pem \
+      -config=ca-config.json \
+      -profile=kubernetes \
+      {{ item }}-csr.json | cfssljson -bare {{ item }}
+    args:
+      chdir: pki
+      creates: "{{ item }}-key.pem"
+    with_items:
+    - admin
+    - kube-controller-manager
+    - kube-proxy
+    - kube-scheduler
+    - service-account
+    tags: pki
+
+  - name: Generate csr-configs for each k8s worker node
+    template:
+      src: worker-csr.json.j2
+      dest: "pki/{{ item.instance_data[0].name }}-csr.json"
+    vars:
+      cn: "{{ item.instance_data[0].name }}"
+    with_items: "{{ workers.results }}"
+    tags: pki
+
+  - name: Generate a certificate and private key for each k8s worker node
+    shell: >
+      cfssl gencert \
+      -ca=ca.pem \
+      -ca-key=ca-key.pem \
+      -config=ca-config.json \
+      -hostname={{ item.instance_data[0].name }},{{ item.instance_data[0].public_ip }},{{ item.instance_data[0].private_ip }} \
+      -profile=kubernetes \
+      {{ item.instance_data[0].name }}-csr.json | cfssljson -bare {{ item.instance_data[0].name }}
+    args:
+      chdir: pki
+      creates: "{{ item.instance_data[0].name }}-key.pem"
+    with_items: "{{ workers.results }}"
+    tags: pki
+
+  - name: Generate the k8s API Server certificate and private key
+    shell: >
+      cfssl gencert \
+      -ca=ca.pem \
+      -ca-key=ca-key.pem \
+      -config=ca-config.json \
+      -profile=kubernetes \
+      -hostname=10.32.0.1,{% for item in controllers.results %}{{ item.instance_data[0].private_ip }},{% endfor %}{{ external_ip.address }},127.0.0.1,kubernetes.default \
+      kubernetes-csr.json | cfssljson -bare kubernetes
+    args:
+      chdir: pki
+      creates: "kubernetes-key.pem"
+    tags: pki
+
+########################################################################################
+### Generete kube configs
+########################################################################################
+
+  - name: Generate a kubeconfig file for each worker node
+    shell: >
+      kubectl config set-cluster kubernetes-the-hard-way \
+        --certificate-authority=ca.pem \
+        --embed-certs=true \
+        --server=https://{{ external_ip.address }}:6443 \
+        --kubeconfig={{ item.instance_data[0].name }}.kubeconfig \
+      && kubectl config set-credentials system:node:{{ item.instance_data[0].name }} \
+        --client-certificate={{ item.instance_data[0].name }}.pem \
+        --client-key={{ item.instance_data[0].name }}-key.pem \
+        --embed-certs=true \
+        --kubeconfig={{ item.instance_data[0].name }}.kubeconfig \
+      && kubectl config set-context default \
+        --cluster=kubernetes-the-hard-way \
+        --user=system:node:{{ item.instance_data[0].name }} \
+        --kubeconfig={{ item.instance_data[0].name }}.kubeconfig \
+      && kubectl config use-context default --kubeconfig={{ item.instance_data[0].name }}.kubeconfig
+    args:
+      chdir: pki
+      creates: "{{ item.instance_data[0].name }}.kubeconfig"
+    with_items: "{{ workers.results }}"
+    tags: pki
+
+  - name: Generate a kubeconfig file for k8s services
+    shell: >
+      kubectl config set-cluster kubernetes-the-hard-way \
+        --certificate-authority=ca.pem \
+        --embed-certs=true \
+        --server=https://{{ item.server_ip }}:6443 \
+        --kubeconfig={{ item.name }}.kubeconfig \
+      && kubectl config set-credentials system:{{ item.name }} \
+        --client-certificate={{ item.name }}.pem \
+        --client-key={{ item.name }}-key.pem \
+        --embed-certs=true \
+        --kubeconfig={{ item.name }}.kubeconfig \
+      && kubectl config set-context default \
+        --cluster=kubernetes-the-hard-way \
+        --user=system:{{ item.name }} \
+        --kubeconfig={{ item.name }}.kubeconfig \
+      && kubectl config use-context default --kubeconfig={{ item.name }}.kubeconfig
+    args:
+      chdir: pki
+      creates: "{{ item.name }}.kubeconfig"
+    with_items:
+    - { name: "kube-proxy", server_ip: "{{ external_ip.address }}" }
+    - { name: "kube-controller-manager", server_ip: 127.0.0.1 }
+    - { name: "kube-scheduler", server_ip: 127.0.0.1 }
+    - { name: "admin", server_ip: 127.0.0.1 }
+    tags: pki
+
+########################################################################################
+### Generating the Data Encryption Config and Key
+########################################################################################
+
+  - name: Generate Encryption key
+    shell: head -c 32 /dev/urandom | base64
+    register: enckey
+    tags: pki
+
+  - name: Create the encryption-config.yaml encryption config file
+    template:
+      src: encryption-config.yaml.j2
+      dest: "pki/encryption-config.yaml"
+    vars:
+      encryption_key: "{{ enckey.stdout }}"
+    tags: pki
+
+########################################################################################
+########################################################################################
+### Provision controllers
+########################################################################################
+########################################################################################
+
+- name: Prepare
+  hosts: controllers
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+  - name: Refresh apt cache
+    become: no
+    local_action: shell ssh -i ssh/kubernetes -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o IdentitiesOnly=yes kubernetes@{{ ansible_host }} sudo apt-get update
+  - name: Install Python-apt to pull in Python
+    become: no
+    local_action: shell ssh -i ssh/kubernetes -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o IdentitiesOnly=yes kubernetes@{{ ansible_host }} sudo apt-get install --no-install-recommends --assume-yes python-apt
+
+########################################################################################
+### etcd
+########################################################################################
+
+  tasks:
+  - name: Download and install the etcd Binaries
+    unarchive:
+      src: https://github.com/coreos/etcd/releases/download/v3.3.5/etcd-v3.3.5-linux-amd64.tar.gz
+      dest: /usr/local/bin/
+      remote_src: yes
+      exclude:
+      - Documentation
+      - README-etcdctl.md
+      - README.md
+      - READMEv2-etcdctl.md
+      extra_opts: [--strip-components=1]
+      mode: 0755
+      creates: /usr/local/bin/etcd
+    tags: etcd
+
+  - name: Creates etcd directories
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+    - "/etc/etcd"
+    - "/var/lib/etcd"
+    tags: etcd
+
+  - name: Copy cert files to etcd dir
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+    - { src: "pki/ca.pem", dest: "/etc/etcd/ca.pem"}
+    - { src: "pki/kubernetes-key.pem", dest: "/etc/etcd/kubernetes-key.pem"}
+    - { src: "pki/kubernetes.pem", dest: "/etc/etcd/kubernetes.pem"}
+    tags: etcd
+
+  - name: Create the etcd.service systemd unit file
+    template:
+      src: templates/etcd.service.j2
+      dest: /etc/systemd/system/etcd.service
+    vars:
+      etcd_name: "{{ inventory_hostname }}"
+      internal_ip: "{{ private_ip }}"
+    tags: etcd
+
+  - name: Start the etcd Server
+    systemd:
+      name: etcd
+      state: started
+      enabled: true
+      daemon_reload: true
+    tags: etcd
+
+########################################################################################
+### Bootstrapping the Kubernetes Control Plane
+########################################################################################
+
+  - name: Download and Install the Kubernetes Controller Binaries
+    get_url:
+      url: "https://storage.googleapis.com/kubernetes-release/release/v1.10.2/bin/linux/amd64/{{ item }}"
+      dest: "/usr/local/bin/"
+      mode: 0755
+    with_items:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+    - kubectl
+    tags: kuberapi
+
+  - name: Creates Kubernetes API Server directories
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+    - /etc/kubernetes/config
+    - /var/lib/kubernetes
+    tags: kuberapi
+
+  - name: Copy the certs to controller hosts
+    copy:
+      src: "pki/{{ item }}"
+      dest: "/var/lib/kubernetes/"
+    with_items:
+    - ca.pem
+    - ca-key.pem
+    - kubernetes.pem
+    - kubernetes-key.pem
+    - service-account-key.pem
+    - service-account.pem
+    - encryption-config.yaml
+    - kube-controller-manager.kubeconfig
+    - kube-scheduler.kubeconfig
+    - admin.kubeconfig
+    tags: kuberapi
+
+  - name: Create the kube-apiserver.service systemd unit file
+    template:
+      src: templates/kube-apiserver.service.j2
+      dest: /etc/systemd/system/kube-apiserver.service
+    vars:
+      internal_ip: "{{ private_ip }}"
+    tags: kuberapi
+
+  - name: Copy the systemd files
+    copy:
+      src: "{{ item }}"
+      dest: "/etc/systemd/system/"
+    become: yes
+    with_items:
+    - kube-controller-manager.service
+    - kube-scheduler.service
+    tags: kuberapi
+
+  - name: Create the kube-scheduler.yaml configuration file
+    copy:
+      content: |
+        apiVersion: componentconfig/v1alpha1
+        kind: KubeSchedulerConfiguration
+        clientConnection:
+          kubeconfig: "/var/lib/kubernetes/kube-scheduler.kubeconfig"
+        leaderElection:
+          leaderElect: true
+      dest: /etc/kubernetes/config/kube-scheduler.yaml
+    tags: kuberapi
+
+  - name: Install nginx
+    apt:
+      name: nginx
+      state: present
+    tags: kuberapi
+
+  - name: HTTP health checks site
+    copy:
+      content: |
+        server {
+          listen      80;
+          server_name kubernetes.default.svc.cluster.local;
+
+          location /healthz {
+             proxy_pass https://127.0.0.1:6443/healthz;
+             proxy_ssl_trusted_certificate /var/lib/kubernetes/ca.pem;
+          }
+        }
+      dest: /etc/nginx/sites-available/kubernetes.default.svc.cluster.local
+    tags: kuberapi
+
+  - name: Enable nginx kubernetes health check config
+    file:
+      src: /etc/nginx/sites-available/kubernetes.default.svc.cluster.local
+      dest: /etc/nginx/sites-enabled/kubernetes.default.svc.cluster.local
+      state: link
+    tags: kuberapi
+
+  - name: Start units
+    systemd:
+      name: "{{ item }}"
+      state: started
+      enabled: true
+      daemon_reload: true
+    with_items:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+    - nginx
+    notify: restart nginx
+    tags: kuberapi
+
+  - name: kubectl get componentstatuses
+    shell: |
+      kubectl get componentstatuses --kubeconfig /var/lib/kubernetes/admin.kubeconfig \
+      && curl -H "Host: kubernetes.default.svc.cluster.local" -i http://127.0.0.1/healthz
+    register: output
+    tags: kuberapi
+
+  - debug: msg={{ output.stdout }}
+    tags: kuberapi
+
+  - name: Copy roles
+    copy:
+      src: "{{ item }}"
+      dest: /tmp
+    with_items:
+    - files/kube-apiserver-to-kubelet-bind.yaml
+    - files/kube-apiserver-to-kubelet-create.yaml
+    tags: kuberapi
+
+  - name: Enumerate roles and bindings
+    command: "{{ item }}"
+    register: output
+    changed_when: false
+    ignore_errors: true
+    with_items:
+    - "kubectl get clusterroles -o name system:kube-apiserver-to-kubelet"
+    - "kubectl get clusterrolebindings -o name system:kube-apiserver"
+    tags: kuberapi
+
+  - name: Create and bind roles
+    shell: "kubectl apply --kubeconfig /var/lib/kubernetes/admin.kubeconfig -f /tmp/{{ item }}"
+    with_items:
+    - kube-apiserver-to-kubelet-create.yaml
+    - kube-apiserver-to-kubelet-bind.yaml
+    when: output.results.0.rc != 0
+    tags: kuberapi
+
+  handlers:
+  - name: restart nginx
+    systemd:
+      name: nginx
+      state: restarted
+    tags: kuberapi
+
+########################################################################################
+########################################################################################
+### LB
+########################################################################################
+########################################################################################
+
+- name: Loadbalancer
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  vars:
+    project_id: docker-201818
+    credentials_file: credentials.json
+    service_account_email: k8s-service-account@docker-201818.iam.gserviceaccount.com
+    region: europe-west4
+    zone: europe-west4-a
+    machine_type: n1-standard-1
+    image: ubuntu-1804-bionic-v20180522
+    controllers_count: 3
+    workers_count: 3
+    metadata: '{"sshKeys":"kubernetes:{{ lookup("file", "ssh/kubernetes.pub") }}"}'
+
+########################################################################################
+### K8s networking
+########################################################################################
+
+  tasks:
+  - name: Create healthchecks
+    gcp_healthcheck:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      healthcheck_name: "kubernetes"
+      healthcheck_type: HTTP
+      host_header: "kubernetes.default.svc.cluster.local"
+      request_path: /healthz
+      check_interval: 5
+      timeout: 5
+      unhealthy_threshold: 2
+      healthy_threshold: 1
+      state: present
+    tags: lb
+
+  - name: Create a fw rule for LB
+    gce_net:
+      credentials_file: "{{ credentials_file }}"
+      project_id: "{{ project_id }}"
+      service_account_email: "{{ service_account_email }}"
+      fwname: kubernetes-the-hard-way-allow-health-check
+      name: kubernetes-the-hard-way
+      allowed: 'tcp'
+      src_range: ['209.85.152.0/22','209.85.204.0/22','35.191.0.0/16']
+      state: present
+    tags: lb
+
+  - name: create kubernetes-target-pool
+    shell: |
+      gcloud compute target-pools create kubernetes-target-pool \
+      --http-health-check kubernetes \
+      --region {{ region }}
+    register: result
+    failed_when: result.rc == 0 or "already exists" not in result.stderr
+    tags: lb
+
+  - name: create kubernetes-target-pool
+    shell: |
+      gcloud compute target-pools add-instances kubernetes-target-pool \
+      --instances-zone {{ zone }} \
+      --instances {% set comma = joiner(",") %}{% for item in groups['controllers'] %}{{ comma() }}{{ hostvars[item].inventory_hostname }}{% endfor %}
+#    register: result
+#    failed_when: result.rc == 0 or "already exists" not in result.stderr
+    tags: lb
+
+  - name: create kubernetes-target-pool
+    shell: |
+      gcloud compute forwarding-rules create kubernetes-forwarding-rule \
+        --address {{ external_ip.address }} \
+        --ports 6443 \
+        --region {{ region }} \
+        --target-pool kubernetes-target-pool
+    register: result
+    failed_when: result.rc == 0 or "already exists" not in result.stderr
+    tags: lb
+
+########################################################################################
+########################################################################################
+### Provision workers
+########################################################################################
+########################################################################################
+
+- name: Prepare
+  hosts: workers
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+  - name: Refresh apt cache
+    become: no
+    local_action: shell ssh -i ssh/kubernetes -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o IdentitiesOnly=yes kubernetes@{{ ansible_host }} sudo apt-get update
+  - name: Install Python-apt to pull in Python
+    become: no
+    local_action: shell ssh -i ssh/kubernetes -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o IdentitiesOnly=yes kubernetes@{{ ansible_host }} sudo apt-get install --no-install-recommends --assume-yes python-apt
+
+  - name: Install the OS dependencies
+    apt:
+      name: nginx
+      state: present
+      update_cache: yes
+    with_items:
+    - socat
+    - conntrack
+    - ipset
+    tags: workers
+
+  - name: Copy config files
+    copy:
+      src: "pki/{{ item }}.kubeconfig"
+      dest: ~/
+    with_items:
+    - "{{ inventory_hostname }}"
+    - kube-proxy
+    tags: workers
+
+  - name: Create the installation directories
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+    - /etc/cni/net.d
+    - /opt/cni/bin
+    - /var/lib/kubelet
+    - /var/lib/kube-proxy
+    - /var/lib/kubernetes
+    - /var/run/kubernetes
+    - /etc/containerd
+    tags: workers
+
+  - name: Download executables
+    get_url:
+      url: "{{ item.src }}"
+      dest: "/usr/local/bin/{{ item.dst }}"
+      mode: 0755
+    with_items:
+    - { src: "https://storage.googleapis.com/kubernetes-the-hard-way/runsc", dst: "runsc" }
+    - { src: "https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64", dst: "runc" }
+    - { src: "https://storage.googleapis.com/kubernetes-release/release/v1.10.2/bin/linux/amd64/kubectl", dst: "kubectl" }
+    - { src: "https://storage.googleapis.com/kubernetes-release/release/v1.10.2/bin/linux/amd64/kube-proxy", dst: "kube-proxy" }
+    - { src: "https://storage.googleapis.com/kubernetes-release/release/v1.10.2/bin/linux/amd64/kubelet", dst: "kubelet" }
+    tags: workers
+
+  - name: Download archs
+    unarchive:
+      src: "{{ item.src }}"
+      dest: "{{ item.dst }}"
+      remote_src: true
+      #extra_opts: [--strip-components=1]
+      mode: 0755
+    with_items:
+    - { src: "https://github.com/kubernetes-incubator/cri-tools/releases/download/v1.0.0-beta.0/crictl-v1.0.0-beta.0-linux-amd64.tar.gz", dst: "/usr/local/bin/" }
+    - { src: "https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz", dst: "/opt/cni/bin/" }
+    - { src: "https://github.com/containerd/containerd/releases/download/v1.1.0/containerd-1.1.0.linux-amd64.tar.gz", dst: "/" }
+    tags: workers
+
+  - name: Get pod cidr
+    uri:
+      url: http://metadata.google.internal/computeMetadata/v1/instance/attributes/pod-cidr
+      headers:
+        Metadata-Flavor: "Google"
+    register: pod_cidr
+    tags: workers, localaccess
+
+  - name: debug
+    debug:
+      msg: "{{ pod_cidr }}"
+    tags: workers
+
+  - name: Create the bridge network configuration file
+    vars:
+      pod_cidr: "{{ pod_cidr }}"
+      hostname: "{{ inventory_hostname }}"
+    template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dst }}"
+    with_items:
+    - { src: "10-bridge.conf.j2", dst: "/etc/cni/net.d/10-bridge.conf" }
+    - { src: "kubelet-config.yaml.j2", dst: "/var/lib/kubelet/kubelet-config.yaml" }
+    tags: workers
+
+  - name: Copy workers files
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dst }}"
+    with_items:
+    - { src: "99-loopback.conf", dst: "/etc/cni/net.d/" }
+    - { src: "config.toml", dst: "/etc/containerd/" }
+    - { src: "kubelet.service", dst: "/etc/systemd/system/" }
+    - { src: "kube-proxy.service", dst: "/etc/systemd/system/" }
+    - { src: "containerd.service", dst: "/etc/systemd/system/" }
+    - { src: "pki/{{ inventory_hostname }}-key.pem", dst: "/var/lib/kubelet/" }
+    - { src: "pki/{{ inventory_hostname }}.pem", dst: "/var/lib/kubelet/" }
+    - { src: "pki/{{ inventory_hostname }}.kubeconfig", dst: "/var/lib/kubelet/kubeconfig" }
+    - { src: "pki/ca.pem", dst: "/var/lib/kubernetes/" }
+    - { src: "pki/kube-proxy.kubeconfig", dst: "/var/lib/kube-proxy/kubeconfig" }
+    tags: workers
+
+  - name: Start units
+    systemd:
+      name: "{{ item }}"
+      state: started
+      enabled: true
+      daemon_reload: true
+    with_items:
+    - containerd
+    - kubelet
+    - kube-proxy
+    tags: workers
+
+#######################################################################################
+########################################################################################
+### Configuring kubectl for Remote Access
+########################################################################################
+########################################################################################
+
+- name: Configuring kubectl for Remote Access
   hosts: localhost
   connection: local
   become: false
   gather_facts: false
 
   tasks:
-  - name: Create network
-    gce_net:
-      name: kubernetes-the-hard-way
-      ipv4_range: '10.240.0.0/24'
-      mode: custom
-      subnet_region: europe-west4
-      subnet_name: "kubernetes"
-      state: "present"
+  - name: The Admin Kubernetes Configuration File
+    shell: |
+      kubectl config set-cluster kubernetes-the-hard-way \
+        --certificate-authority=ca.pem \
+        --embed-certs=true \
+        --server=https://{{ external_ip.address }}:6443 \
+      && kubectl config set-credentials admin \
+        --client-certificate=admin.pem \
+        --client-key=admin-key.pem \
+      && kubectl config set-context kubernetes-the-hard-way \
+        --cluster=kubernetes-the-hard-way \
+        --user=admin \
+      && kubectl config use-context kubernetes-the-hard-way
+    args:
+      chdir: pki
+      #creates: "{{ item.name }}.kubeconfig"
+    tags: remoteaccess
 
-  - name: FW allow internal
-    gce_net:
-      name: kubernetes-the-hard-way
-      fwname: kubernetes-the-hard-way-allow-internal
-      allowed: 'icmp;tcp;udp'
-      src_range: ['10.240.0.0/24', '10.200.0.0/16']
-      state: present
-
-  - name: FW allow external
-    gce_net:
-      name: kubernetes-the-hard-way
-      fwname: "kubernetes-the-hard-way-allow-external"
-      allowed: 'icmp;tcp:22,6443'
-      src_range: ['0.0.0.0/0']
-      state: present
+  - name: Create network routes 
+    shell: |
+      gcloud compute routes create kubernetes-route-{{ hostvars[item].inventory_hostname }} \
+      --network kubernetes-the-hard-way \
+      --next-hop-address {{ hostvars[item].private_ip }} \
+      --destination-range 10.200.{{ hostvars[item].inventory_hostname.split('-')[1] }}.0/24
+    with_items: "{{ groups['workers'] }}"
+    tags: remoteaccess
