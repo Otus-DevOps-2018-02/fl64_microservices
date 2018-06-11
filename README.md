@@ -15,6 +15,7 @@ fl64 microservices repository
 - [19. Homework-19: Monitoring-1](#19-homework-19-monitoring-1)
 - [20. Homework-20: Monitoring-2](#20-homework-20-monitoring-2)
 - [21. Homework-21: Logging-1](#21-homework-21-logging-1)
+- [22. Homework-22: Kubernetes-1](#22-homework-22-kubernetes-1)
 
 # 13. Homework-13: docker-1
 
@@ -546,7 +547,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 - Сервис Kibana доступен по адресу http://docker-machine-ip:5601
 - Сервис Zipkin доступен по адресу http://docker-machine-ip:5601
 
-# 22. Homework-22. Logging-1
+# 22. Homework-22. Kubernetes-1
 
 ## 22.1 Что было сделано
 
@@ -561,7 +562,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 - Создать сервисную учетную запись в GCP с правами доступа к проекту docker-******;
 - Выполнить `cd kubernetes\ansible`
 - Сохранить файс с учетными данными GCP в credentials.json, пример: `gcloud iam service-accounts keys create credentials.json --iam-account k8s-service-account@docker-201818.iam.gserviceaccount.com`
-- Установить локально необходимый софт для развертывания: `ansible-playbook 01-install-client-tools.yaml`. 
+- Установить локально необходимый софт для развертывания: `ansible-playbook 01-install-client-tools.yaml`.
 - Запустить создание k8s в GCP: `02-kubernetes-the-hard-way.yaml`
 
 ## 22.3 Как проверить
