@@ -26,3 +26,4 @@ vault.key
 key.json
 secrets.tar.gz
 
+build_info.txt

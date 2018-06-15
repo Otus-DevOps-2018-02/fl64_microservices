@@ -14,6 +14,7 @@ fl64 microservices repository
 - [18. Homework-18: Gitlab-CI-1](#18-homework-18-gitlab-ci-2)
 - [19. Homework-19: Monitoring-1](#19-homework-19-monitoring-1)
 - [20. Homework-20: Monitoring-2](#20-homework-20-monitoring-2)
+- [21. Homework-21: Logging-1](#21-homework-21-logging-1)
 
 # 13. Homework-13: docker-1
 
@@ -462,7 +463,7 @@ gitlab/gitlab-runner:latest
 - созданы дашборды и настроены графики для различных метрик
 - настроена отправка алертов в канал Slack (https://devops-team-otus.slack.com/messages/C9KNXLWAY)
 
-задание со *, **:
+задание со *:
 - обновлен Makefile для установки новых сервисов
 - prometheus настроен для сбора нативных метрик docker (экспериментальный режим)
 - настроена отправка алертов на email (gmail)
@@ -504,3 +505,46 @@ NB! cAdvisor не работает при наличии контейнеров 
 	- во вкладке Targets - отображаются источники метрик
 
 ![](https://i.imgur.com/msWAYNr.png)
+
+# 21. Homework-21. Logging-1
+
+## 21.1 Что было сделано
+
+- обновлен код приложения для интеграции с системой лонирования (fluentd, zipkin)
+- создан файл docker-compose-logging.yml позволяюший установить компоненты системы логирования (fluentd, ELK, zipkin)
+- проведены настройки fluentd, ELK
+
+задание со *:
+- в параметры фильтров fluentd добавлен код парсинга логов сервиса UI
+- найдена проблема работоспособности сбойного сервиса (https://github.com/Artemmkin/bugged-code)
+
+## 21.2 Как запустить проект ( Base + * )
+Все действия выполняются в корне репозитория.
+в makefile задать значения переменных:
+- USER_NAME - имя пользователя для docker hub
+- VM_NAME - имя создаваемой VM
+- GOOGLE_PROJECT- название проекта в GCP
+либо передавать их в качестве аргументов при запуске make, например:
+`make init USER_NAME=user VM_NAME=logging GOOGLE_PROJECT=docker-012345`
+
+Далее:
+- `cp docker/.env.logging.example docker/.env` - создать файл с переменными окружения, в который при необходимости внести изменения;
+- `make init` - создать docker-machine в GCP + правила МЭ;
+- `eval $(docker-machine env VM_NAME)`, где VM_NAME - имя созданного сервера Docker-machine.
+
+- `make build` - создать контенеры приложения (ui, post, comment)
+- `make build_log` - создать контенеры системы логирования (fluentd)
+
+- `make log_start` - запустить сервсиы логирования (fluentd, ElasticSearch, Kibana, Zipkin)
+- `make app_start` - запустить приложение (ui, post, comment)
+
+После окончания работы:
+- `make destroy` - удалить созданный сервер docker-machine + созданные правила МЭ
+
+## 21.3 Как проверить
+- выполнить `docker-machine ip VM_NAME`
+- Сервис Kibana доступен по адресу http://docker-machine-ip:5601
+- Сервис Zipkin доступен по адресу http://docker-machine-ip:5601
+
+
+

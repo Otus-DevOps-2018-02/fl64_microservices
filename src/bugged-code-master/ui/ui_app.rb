@@ -21,8 +21,6 @@ COMMENT_URL ||= "http://#{COMMENT_SERVICE_HOST}:#{COMMENT_SERVICE_PORT}"
 # App version and build info
 VERSION ||= File.read('VERSION').strip
 BUILD_INFO = File.readlines('build_info.txt')
-@@host_info=ENV['HOSTNAME']
-@@env_info=ENV['ENV']
 
 configure do
   http_client = Faraday.new do |faraday|
@@ -59,7 +57,7 @@ prometheus.register(ui_health_comment_gauge)
 
 # Schedule health check function
 scheduler = Rufus::Scheduler.new
-scheduler.every '5s' do
+scheduler.every '5m' do
   check = JSON.parse(http_healthcheck_handler(POST_URL, COMMENT_URL, VERSION))
   set_health_gauge(ui_health_gauge, check['status'])
   set_health_gauge(ui_health_post_gauge, check['dependent_services']['post'])

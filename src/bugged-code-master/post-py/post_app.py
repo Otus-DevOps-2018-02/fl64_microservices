@@ -50,7 +50,7 @@ def http_transport(encoded_span):
     # The collector expects a thrift-encoded list of spans. Instead of
     # decoding and re-encoding the already thrift-encoded message, we can just
     # add header bytes that specify that what follows is a list of length 1.
-    body = '\x0c\x00\x00\x00\x01' + str(encoded_span)
+    body = '\x0c\x00\x00\x00\x01' + encoded_span
     requests.post(ZIPKIN_URL, data=body,
                   headers={'Content-Type': 'application/x-thrift'})
 
@@ -164,6 +164,7 @@ def find_post(id):
         stop_time = time.time()  # + 0.3
         resp_time = stop_time - start_time
         app.post_read_db_seconds.observe(resp_time)
+        time.sleep(3)
         log_event('info', 'post_find',
                   'Successfully found the post information',
                   {'post_id': id})
