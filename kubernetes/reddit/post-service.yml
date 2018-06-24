@@ -13,4 +13,4 @@ spec:
     targetPort: 5000
   selector:
     app: reddit
-component: post
+    component: post
