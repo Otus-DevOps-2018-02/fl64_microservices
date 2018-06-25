@@ -585,11 +585,12 @@ NB! cAdvisor не работает при наличии контейнеров 
 
 ## 23.2 Как запустить проект ( Base + * )
 
+- `cd kubernetes\teraform`
 - `terraform init`
 - `terraform apply`
 - перейти в GCP --> Kubernetes clusters --> Connect, выполнить конфигурацию kubectl
-- создать неймспейс `kubectl apply -f ./kubernetes/reddit/dev-namespace.yml`
-- выполнить деплой приложения reddit `kubectl apply -n dev -f ./kubernetes/reddit/`
+- создать неймспейс `kubectl apply -f ../reddit/dev-namespace.yml`
+- выполнить деплой приложения reddit `kubectl apply -n dev -f ../reddit/`
 
 
 ## 23.3 Как проверить
@@ -615,12 +616,12 @@ NB! cAdvisor не работает при наличии контейнеров 
 
 ## 23.2 Как запустить проект ( Base + * )
 
+- `cd kubernetes\teraform`
 - `terraform init`
 - `terraform apply`
 - перейти в GCP --> Kubernetes clusters --> Connect, выполнить конфигурацию kubectl
-- создать неймспейс `kubectl apply -f ./kubernetes/reddit/dev-namespace.yml`
-- выполнить деплой приложения reddit `kubectl apply -n dev -f ./kubernetes/reddit/`
-
+- создать неймспейс `kubectl apply -f ../reddit/dev-namespace.yml`
+- выполнить деплой приложения reddit `kubectl apply -n dev -f ../reddit/`
 
 ## 23.3 Как проверить
 Выполнить:
