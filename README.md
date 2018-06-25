@@ -599,6 +599,42 @@ NB! cAdvisor не работает при наличии контейнеров 
 	- `kubectl describe service ui -n dev | grep NodePort`
 - перейти по адресу и порту, на котором опубликовано приложение
 
+# 23. Homework-24. Kubernetes-3
+
+## 23.1 Что было сделано
+
+- созданы файлы манифестов приложения reddit для настройки:
+	- Ingress контроллера
+	- TLS
+	- LB
+	- сетевых политик
+	- хранилищ
+
+задание со *:
+- создан манифест (secret) для TLS-сертификата
+
+## 23.2 Как запустить проект ( Base + * )
+
+- `terraform init`
+- `terraform apply`
+- перейти в GCP --> Kubernetes clusters --> Connect, выполнить конфигурацию kubectl
+- создать неймспейс `kubectl apply -f ./kubernetes/reddit/dev-namespace.yml`
+- выполнить деплой приложения reddit `kubectl apply -n dev -f ./kubernetes/reddit/`
+
+
+## 23.3 Как проверить
+Выполнить:
+- получить значение ip port опубликованного приложения `kubectl get ingress -n dev | tail -n 1 | awk '{print $3}'`
+- перейти по адресу на котором опубликовано приложение
+
+
+
+
+
+
+
+
+
 
 
 
