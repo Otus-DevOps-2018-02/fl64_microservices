@@ -1,0 +1,7 @@
+name: post
+version: 1.0.0
+description: OTUS reddit application Post
+maintainers:
+  - name: Tishkov Pavel
+    email: tishkov.pavel@gmail.com
+appVersion: 1.0
