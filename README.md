@@ -16,6 +16,9 @@ fl64 microservices repository
 - [20. Homework-20: Monitoring-2](#20-homework-20-monitoring-2)
 - [21. Homework-21: Logging-1](#21-homework-21-logging-1)
 - [22. Homework-22: Kubernetes-1](#22-homework-22-kubernetes-1)
+- [23. Homework-23: Kubernetes-2](#23-homework-23-kubernetes-2)
+- [24. Homework-24: Kubernetes-3](#24-homework-24-kubernetes-3)
+- [25. Homework-25: Kubernetes-4](#25-homework-25-kubernetes-5)
 
 # 13. Homework-13: docker-1
 
@@ -600,9 +603,9 @@ NB! cAdvisor не работает при наличии контейнеров 
 	- `kubectl describe service ui -n dev | grep NodePort`
 - перейти по адресу и порту, на котором опубликовано приложение
 
-# 23. Homework-24. Kubernetes-3
+# 24. Homework-24. Kubernetes-3
 
-## 23.1 Что было сделано
+## 24.1 Что было сделано
 
 - созданы файлы манифестов приложения reddit для настройки:
 	- Ingress контроллера
@@ -614,7 +617,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 задание со *:
 - создан манифест (secret) для TLS-сертификата
 
-## 23.2 Как запустить проект ( Base + * )
+## 24.2 Как запустить проект ( Base + * )
 
 - `cd kubernetes\teraform`
 - `terraform init`
@@ -623,10 +626,78 @@ NB! cAdvisor не работает при наличии контейнеров 
 - создать неймспейс `kubectl apply -f ../reddit/dev-namespace.yml`
 - выполнить деплой приложения reddit `kubectl apply -n dev -f ../reddit/`
 
-## 23.3 Как проверить
+## 24.3 Как проверить
 Выполнить:
 - получить значение ip port опубликованного приложения `kubectl get ingress -n dev | tail -n 1 | awk '{print $3}'`
 - перейти по адресу на котором опубликовано приложение
+
+# 25. Homework-24. Kubernetes-3
+
+## 25.1 Что было сделано
+
+- установлен и настроел Helm + Tiller
+- созданы Charts на основе манифестов kubernetes
+- с использовнием helm развернут Gitlab-CI, для которого:
+	- создана группы и проекты
+	- настроены пайплайны для сборки и деплоя приложения
+задание со *:
+- в пайплайны ui,post,comment добавлена возможность запуска деплоя при коммите в ветку master
+
+## 25.2 Как запустить проект (Base)
+
+### Базовая настройка
+
+- `cd kubernetes\teraform`
+- `terraform init`
+- `terraform apply`
+- перейти в GCP --> Kubernetes clusters --> Настройки кластера cluster --> Установить  Legacy authorization: Enable
+- перейти в GCP --> Kubernetes clusters --> Connect, выполнить конфигурацию kubectl
+
+### Helm
+![](https://chocolatey.org/content/packageimages/kubernetes-helm.2.9.1.png)
+
+- `kubectl apply -f kubernetes/Charts/tiller.yml`
+- `helm init --service-account tiller`
+- `kubectl get pods -n kube-system --selector app=helm` убедится в наличии пода helm
+
+### Helm test deploy
+
+- `helm install kubernetes/Charts/reddit --name test01`
+- `helm ls; kubectl get pods` - убедиться в наличии задеплоенного приложения и нужных подов
+- `kubectl get ingress` - дождаться (ждать долго) получения внешнего адреса, перейти на сайт приложения
+
+### Gitlab
+![](https://flowdocs.built.io/assets/blt99e09e809ca0ba6e/Gitlab-128.png)
+
+**Перед установкой Gitlab ci убедитсья в отсутсвтии неиспользуемыех SSD-дисков иначе может не взлететь из-за превышения квот**
+
+- `helm install --name gitlab kubernetes/Charts/gitlab-omnibus -f kubernetes/Charts/gitlab-omnibus/values.yaml`
+- `kubectl get service -n nginx-ingress nginx` (ждать долго) получить адрес gitlab-ci и прописать его в /etc/hosts для gitlab-gitlab, staging, production
+- Добавить группу fl64 и проекты ui,post,comment,reddit-deploy
+- Добавить переменные для доступа на docker hub:
+	- CI_REGISTRY_PASSWORD
+	- CI_REGISTRY_USER
+- Запушить код приложения последовательно в каждую ветку
+
+Для задания со *:
+- http://gitlab-gitlab/fl64/reddit-deploy/settings/ci_cd --> Pipeline triggers --> Задать имя триггера и добавить его.
+- Токен триггера добавить в переменную DEPLOY_TOKEN группы fl64
+
+## 25.3 Как проверить
+
+#### Для Helm test deploy
+- `kubectl get ingress`
+- перейти в браузере по указанному адресу для задеплоенного приложения
+Удлаить приложение:
+- `helm delete --purge test01`
+
+#### Для Gitlab + *
+- запушить изменения последовательно в ui,post,commit
+- отработают пайплайны для соотвествующих проектов, автоматически отработает пайплайн reddit-deploy (для задания со *)
+- тестовые приложения доступны по ссылке:
+	- http://staging
+	- http://profuction
+
 
 
 
