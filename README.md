@@ -705,6 +705,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 
 - установлен prometheus и настроен сбор метрик для k8s, метрики также отображаются для каждого микросервиса приложения (ui, post, comment)
 - установлена grafana + настроены дэшборды для отображения статистики приложения. отображение графиков возможно для разных окружений
+	- в описании ДЗ значение параметра - namespace, по факту - kubernetes_namespace
 - установлен и настроен EFK для сбора логов приложения
 
 задание со * (50/50):
@@ -713,7 +714,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 
 ## 26.2 Как запустить проект (Base)
 
-### Базовая настройка
+### 26.2.1 Базовая настройка
 
 #### Установка кластера
 - `cd kubernetes\teraform`
@@ -741,6 +742,8 @@ helm upgrade staging --namespace staging kubernetes/Charts/reddit --install
 #### Установка и запуск grafana
 - `helm upgrade grafana kubernetes/Charts/grafana -f kubernetes/Charts/grafana/custom_values.yaml --install`
 - импортировать шаблоны дэшбордов из kubernetes/Grafana_dashboards
+
+### 26.2.2 *
 
 #### Установка и запуск EFK
 `helm upgrade grafana kubernetes/Charts/efk -f kubernetes/Charts/efk/custom_values.yaml --install`
