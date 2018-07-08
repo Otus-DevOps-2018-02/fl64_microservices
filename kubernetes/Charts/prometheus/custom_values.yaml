@@ -4,7 +4,7 @@ rbac:
 alertmanager:
   ## If false, alertmanager will not be installed
   ##
-  enabled: false
+  enabled: true
 
   # Defines the serviceAccountName to use when `rbac.create=false`
   serviceAccountName: default
@@ -54,8 +54,8 @@ alertmanager:
     ## alertmanager Ingress hostnames
     ## Must be provided if Ingress is enabled
     ##
-    hosts: []
-    #   - alertmanager.domain.com
+    hosts: 
+      - reddit-alertmanager
 
     ## alertmanager Ingress TLS configuration
     ## Secrets must be manually created in the namespace

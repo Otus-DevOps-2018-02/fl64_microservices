@@ -18,7 +18,8 @@ fl64 microservices repository
 - [22. Homework-22: Kubernetes-1](#22-homework-22-kubernetes-1)
 - [23. Homework-23: Kubernetes-2](#23-homework-23-kubernetes-2)
 - [24. Homework-24: Kubernetes-3](#24-homework-24-kubernetes-3)
-- [25. Homework-25: Kubernetes-4](#25-homework-25-kubernetes-5)
+- [25. Homework-25: Kubernetes-4](#25-homework-25-kubernetes-4)
+- [26. Homework-26: Kubernetes-5](#26-homework-26-kubernetes-5)
 
 # 13. Homework-13: docker-1
 
@@ -631,11 +632,11 @@ NB! cAdvisor не работает при наличии контейнеров 
 - получить значение ip port опубликованного приложения `kubectl get ingress -n dev | tail -n 1 | awk '{print $3}'`
 - перейти по адресу на котором опубликовано приложение
 
-# 25. Homework-24. Kubernetes-3
+# 25. Homework-25. Kubernetes-4
 
 ## 25.1 Что было сделано
 
-- установлен и настроел Helm + Tiller
+- установлен и настроен Helm + Tiller
 - созданы Charts на основе манифестов kubernetes
 - с использовнием helm развернут Gitlab-CI, для которого:
 	- создана группы и проекты
@@ -697,6 +698,60 @@ NB! cAdvisor не работает при наличии контейнеров 
 - тестовые приложения доступны по ссылке:
 	- http://staging
 	- http://profuction
+
+# 26. Homework-26. Kubernetes-5
+
+## 26.1 Что было сделано
+
+- установлен prometheus и настроен сбор метрик для k8s, метрики также отображаются для каждого микросервиса приложения (ui, post, comment)
+- установлена grafana + настроены дэшборды для отображения статистики приложения. отображение графиков возможно для разных окружений
+- установлен и настроен EFK для сбора логов приложения
+
+задание со * (50/50):
+- настройка alertmanager - не выполнялась
+- создан chart для установки EFK
+
+## 26.2 Как запустить проект (Base)
+
+### Базовая настройка
+
+#### Установка кластера
+- `cd kubernetes\teraform`
+- `terraform init`
+- `terraform apply`
+- `gcloud container clusters get-credentials cluster --zone europe-west4-a --project docker-XXXXXX`, где docker-XXXXXX - название проекта
+
+#### Настрйока HELM
+- `kubectl apply -f kubernetes/reddit/tiller.yml`
+- `helm init --service-account tiller`
+
+#### Установка nginx ingress
+- `helm install stable/nginx-ingress --name nginx`
+- `echo $(kubectl get svc | grep LoadBalancer | awk '{print $4}')  reddit reddit-prometheus reddit-grafana reddit-non-prod production reddit-kibana staging prod >> /etc/hosts`
+
+#### Установить prometheus
+- `helm upgrade prom kubernetes/Charts/prometheus -f kubernetes/Charts/prometheus/custom_values.yaml --install`
+
+#### Запуск приложения
+```
+helm upgrade reddit-test kubernetes/Charts/reddit --install
+helm upgrade production --namespace production kubernetes/Charts/reddit --install
+helm upgrade staging --namespace staging kubernetes/Charts/reddit --install
+```
+#### Установка и запуск grafana
+- `helm upgrade grafana kubernetes/Charts/grafana -f kubernetes/Charts/grafana/custom_values.yaml --install`
+- импортировать шаблоны дэшбордов из kubernetes/Grafana_dashboards
+
+#### Установка и запуск EFK
+`helm upgrade grafana kubernetes/Charts/efk -f kubernetes/Charts/efk/custom_values.yaml --install`
+
+## 26.3 Как проверить
+
+- сервис prometheus доступен по адресу http://reddit-prometheus, настроен сбор метрик для:
+	- k8s
+	- ui, comment, post
+- сервис grafana доступен по адресу http://reddit-grafana
+- сервис EFK доступен по адресу http://reddit-kibana
 
 
 
