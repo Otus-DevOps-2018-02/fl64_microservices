@@ -1,0 +1,31 @@
+---
+- name: Install kubectl
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+
+  tasks:
+  - name: Install cleint tools
+    get_url:
+      url: "{{ item.link }}"
+      dest: "/usr/local/bin/{{ item.cmd }}"
+      mode: 0755
+    with_items:
+    - { link: "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64", cmd: "cfssl"}
+    - { link: "https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64", cmd: "cfssljson"}
+    - { link: "https://storage.googleapis.com/kubernetes-release/release/v1.10.2/bin/linux/amd64/kubectl", cmd: "kubectl"}
+    tags: install
+
+  - name: Creates ssh directory
+    file:
+      path: ./ssh
+      state: directory
+    tags: ssh
+
+  - name: Create ssh k8s keys
+    shell: ssh-keygen -f kubernetes -P "" -C kubernetes
+    args:
+      chdir: ssh
+      creates: kubernetes.pem
+    tags: ssh
