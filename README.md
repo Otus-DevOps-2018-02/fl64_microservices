@@ -551,7 +551,7 @@ NB! cAdvisor не работает при наличии контейнеров 
 
 ## 22.1 Что было сделано
 
-- созданы файлы манифестов серывисов (post, ui, comment, mongo)
+- созданы файлы манифестов сервисов (post, ui, comment, mongo)
 - развернут k8s по шагам описанным в https://github.com/kelseyhightower/kubernetes-the-hard-way
 
 задание со *:
@@ -569,6 +569,39 @@ NB! cAdvisor не работает при наличии контейнеров 
 Выполнить:
 - `kubectl get componentstatuses` - отобразится состояние компонентов кластера
 - `kubectl get nodes` - отобразится состояние рабоичх узлов
+
+# 23. Homework-23. Kubernetes-2
+
+## 23.1 Что было сделано
+
+- созданы файлы манифестов (post, ui, comment, mongo), описание сервисов и неймспейсов
+- приложение развернуто в окружении minikube и GKE 
+
+![](https://i.imgur.com/cfVe8Gt.png)
+
+задание со *:
+- создан файл terraform для установки кластера kubernettes в GKE
+- созданы файлы манифестов для сервиса kubernetes dashboard
+
+## 23.2 Как запустить проект ( Base + * )
+
+- `terraform init`
+- `terraform apply`
+- перейти в GCP --> Kubernetes clusters --> Connect, выполнить конфигурацию kubectl
+- создать неймспейс `kubectl apply -f ./kubernetes/reddit/dev-namespace.yml`
+- выполнить деплой приложения reddit `kubectl apply -n dev -f ./kubernetes/reddit/`
+
+
+## 23.3 Как проверить
+Выполнить:
+- с использованием следующих команд, получить значение ip + port опубликованного приложения:
+	- `kubectl get nodes -o wide`
+	- `kubectl describe service ui -n dev | grep NodePort`
+- перейти по адресу и порту, на котором опубликовано приложение
+
+
+
+
 
 
 
