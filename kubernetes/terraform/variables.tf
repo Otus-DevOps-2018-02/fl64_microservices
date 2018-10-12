@@ -15,7 +15,8 @@ variable zone {
 
 variable machine_type {
   description = "Machine type"
-  default     = "g1-small"
+  #default     = "g1-small"
+  default      = "n1-standard-2"
 }
 
 variable disk_size {
@@ -25,7 +26,7 @@ variable disk_size {
 
 variable initial_node_count {
   description = "Initial Node Count"
-  default     = 3
+  default     = 2
 }
 
 variable gke_version {

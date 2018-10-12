@@ -1,0 +1,20 @@
+comment:
+  image:
+    repository: fl64/comment
+    tag: latest
+  service:
+    externalPort: 9292
+
+post:
+  image:
+    repository: fl64/post
+    tag: latest
+    service:
+      externalPort: 5000
+
+ui:
+  image:
+    repository: fl64/ui
+    tag: latest
+    service:
+      externalPort: 9292
